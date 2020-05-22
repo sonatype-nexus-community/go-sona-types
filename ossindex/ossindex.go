@@ -58,12 +58,13 @@ func getOssIndexURL() string {
 }
 
 // RemoveCacheDirectory deletes the local database directory.
-func RemoveCacheDirectory() error {
-	return dbCache.RemoveCache(logLady)
+func RemoveCacheDirectory(logger *logrus.Logger) error {
+	return dbCache.RemoveCache(logger)
 }
 
 // AuditPackagesWithOSSIndex will given a list of Package URLs, run an OSS Index audit, and takes OSS Index configuration
 func AuditPackagesWithOSSIndex(purls []string, config types.Configuration, logger *logrus.Logger) ([]types.Coordinate, error) {
+	logLady = logger
 	return doAuditPackages(purls, &config)
 }
 

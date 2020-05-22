@@ -1,5 +1,5 @@
 //
-// Copyright 2018-present Sonatype Inc.
+// Copyright 2020-present Sonatype Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -101,5 +101,8 @@ type OSSIndexError struct {
 }
 
 func (o *OSSIndexError) Error() string {
-	return fmt.Sprintf("An error occurred: %s, err: %e", o.Message, o.Err)
+	if o.Err != nil {
+		return fmt.Sprintf("An error occurred: %s, err: %s", o.Message, o.Err.Error())
+	}
+	return fmt.Sprintf("An error occurred: %s", o.Message)
 }

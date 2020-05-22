@@ -109,7 +109,7 @@ func TestAuditPackages_ErrorNonExistentPurl(t *testing.T) {
 
 	coordinates, err := AuditPackagesWithOSSIndex([]string{"nonexistent-purl"}, setupConfiguration(), logger)
 	assert.Equal(t, []types.Coordinate(nil), coordinates)
-	assert.Equal(t, "[400 Bad Request] error accessing OSS Index", err.Error())
+	assert.Equal(t, "An error occurred: [400 Bad Request] error accessing OSS Index", err.Error())
 }
 
 func TestAuditPackages_ErrorBadResponseBody(t *testing.T) {

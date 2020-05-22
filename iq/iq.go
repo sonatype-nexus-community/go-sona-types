@@ -95,7 +95,10 @@ type IQServerError struct {
 }
 
 func (i *IQServerError) Error() string {
-	return fmt.Sprintf("An error occurred: %s, err: %e", i.Message, i.Err)
+	if i.Err != nil {
+		return fmt.Sprintf("An error occurred: %s, err: %s", i.Message, i.Err.Error())
+	}
+	return fmt.Sprintf("An error occurred: %s", i.Message)
 }
 
 // AuditPackages accepts a slice of purls, public application ID, and configuration, and will submit these to

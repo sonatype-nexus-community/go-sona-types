@@ -112,7 +112,10 @@ type CycloneDXError struct {
 }
 
 func (c *CycloneDXError) Error() string {
-	return fmt.Sprintf("An error occurred: %s, err: %e", c.Message, c.Err)
+	if c.Err != nil {
+		return fmt.Sprintf("An error occurred: %s, err: %s", c.Message, c.Err.Error())
+	}
+	return fmt.Sprintf("An error occurred: %s", c.Message)
 }
 
 const cycloneDXBomXmlns1_1 = "http://cyclonedx.org/schema/bom/1.1"
