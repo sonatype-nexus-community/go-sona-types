@@ -38,12 +38,6 @@ func init() {
 	logger, _ = test.NewNullLogger()
 }
 
-func setupConfiguration() (config types.Configuration) {
-	config.Username = "user"
-	config.Token = "token"
-	return
-}
-
 func TestInsert(t *testing.T) {
 	cache := setupTestsAndCache(t)
 

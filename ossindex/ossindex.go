@@ -157,8 +157,12 @@ func setupRequest(jsonStr []byte, config *types.Configuration) (req *http.Reques
 	if err != nil {
 		return nil, err
 	}
+	if config.Version != "" {
+		req.Header.Set("User-Agent", useragent.GetUserAgent(logLady, config.Version))
+	} else {
+		req.Header.Set("User-Agent", useragent.GetUserAgent(logLady, "development"))
+	}
 
-	req.Header.Set("User-Agent", useragent.GetUserAgent(logLady, config.Version))
 	req.Header.Set("Content-Type", "application/json")
 	if config != nil && config.Username != "" && config.Token != "" {
 		logLady.Info("Set OSS Index Basic Auth")
