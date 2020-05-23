@@ -34,18 +34,34 @@ import (
 // DBName can be used to override the actual database name, primarily for testing
 // TTL can be used to set the amount of time a specific object can live in the cache
 type Cache struct {
+	Options Options
+	logLady *logrus.Logger
+}
+
+// Options is a struct with values necessary to run the cache package
+type Options struct {
+	// DBDirName is the directory that will be created or used for the cache DB, defaults to nancy
+	DBDirName string
+	// DBName is the actual name of the cache database on disk
 	DBName string
-	TTL    time.Time
+	// TTL is the time each entry into the cache will live for before being replaced
+	TTL time.Time
 }
 
 const dbDirName = "nancy"
-
-var logLady *logrus.Logger
 
 // DBValue is a local struct used for adding a TTL to a Coordinates struct
 type DBValue struct {
 	Coordinates types.Coordinate
 	TTL         int64
+}
+
+// New is intended to be the way to obtain a cache instance
+func New(logger *logrus.Logger, options Options) *Cache {
+	if options.DBDirName == "" {
+		options.DBDirName = dbDirName
+	}
+	return &Cache{logLady: logger, Options: options}
 }
 
 func (c *Cache) getDatabasePath() (dbDir string, err error) {
@@ -57,15 +73,14 @@ func (c *Cache) getDatabasePath() (dbDir string, err error) {
 		}
 	}
 
-	return path.Join(usr.HomeDir, types.OssIndexDirName, dbDirName, c.DBName), err
+	return path.Join(usr.HomeDir, types.OssIndexDirName, c.Options.DBDirName, c.Options.DBName), err
 }
 
 // RemoveCache deletes the cache database
-func (c *Cache) RemoveCache(logger *logrus.Logger) error {
-	logLady = logger
+func (c *Cache) RemoveCache() error {
 	defer func() {
 		if err := pudge.CloseAll(); err != nil {
-			logger.WithField("error", err).Error("An error occurred with closing the Pudge DB")
+			c.logLady.WithField("error", err).Error("An error occurred with closing the Pudge DB")
 		}
 	}()
 
@@ -81,7 +96,7 @@ func (c *Cache) RemoveCache(logger *logrus.Logger) error {
 		return nil
 	}
 	if _, ok := err.(*os.PathError); ok {
-		logLady.WithField("error", err).Error("Unable to delete database, looks like it doesn't exist")
+		c.logLady.WithField("error", err).Error("Unable to delete database, looks like it doesn't exist")
 		return nil
 	}
 	err = pudge.BackupAll(dbDir)
@@ -94,11 +109,10 @@ func (c *Cache) RemoveCache(logger *logrus.Logger) error {
 
 // Insert takes a slice of Coordinates, and inserts them into the cache database.
 // An error is returned if there is an issue setting a key into the cache.
-func (c *Cache) Insert(coordinates []types.Coordinate, logger *logrus.Logger) (err error) {
-	logLady = logger
+func (c *Cache) Insert(coordinates []types.Coordinate) (err error) {
 	defer func() {
 		if err := pudge.CloseAll(); err != nil {
-			logger.WithField("error", err).Error("An error occurred with closing the Pudge DB")
+			c.logLady.WithField("error", err).Error("An error occurred with closing the Pudge DB")
 		}
 	}()
 
@@ -111,9 +125,9 @@ func (c *Cache) Insert(coordinates []types.Coordinate, logger *logrus.Logger) (e
 			}
 		}
 
-		err = pudge.Set(dbDir, strings.ToLower(coordinate.Coordinates), DBValue{Coordinates: coordinate, TTL: c.TTL.Unix()})
+		err = pudge.Set(dbDir, strings.ToLower(coordinate.Coordinates), DBValue{Coordinates: coordinate, TTL: c.Options.TTL.Unix()})
 		if err != nil {
-			logLady.WithField("error", err).Error("Unable to add coordinate to cache DB")
+			c.logLady.WithField("error", err).Error("Unable to add coordinate to cache DB")
 			return err
 		}
 		return nil
@@ -149,11 +163,10 @@ func (c *Cache) Insert(coordinates []types.Coordinate, logger *logrus.Logger) (e
 // It will return a new slice of purls used to talk to OSS Index (if any are not in the cache),
 // a partially hydrated results slice if there are results in the cache, and an error if the world
 // ends, or we wrote bad code, whichever comes first.
-func (c *Cache) GetCacheValues(purls []string, logger *logrus.Logger) ([]string, []types.Coordinate, error) {
-	logLady = logger
+func (c *Cache) GetCacheValues(purls []string) ([]string, []types.Coordinate, error) {
 	defer func() {
 		if err := pudge.CloseAll(); err != nil {
-			logLady.WithField("error", err).Error("An error occurred with closing the Pudge DB")
+			c.logLady.WithField("error", err).Error("An error occurred with closing the Pudge DB")
 		}
 	}()
 
@@ -180,7 +193,7 @@ func (c *Cache) GetCacheValues(purls []string, logger *logrus.Logger) ([]string,
 			}
 			continue
 		} else {
-			logLady.WithField("coordinate", item.Coordinates).Info("Result found in cache, moving forward and hydrating results")
+			c.logLady.WithField("coordinate", item.Coordinates).Info("Result found in cache, moving forward and hydrating results")
 			results = append(results, item.Coordinates)
 		}
 	}
@@ -199,7 +212,7 @@ func (c *Cache) deleteKey(key string) error {
 
 	err = pudge.Delete(dbDir, strings.ToLower(key))
 	if err != nil {
-		logLady.WithField("error", err).Error("Unable to delete value from pudge db")
+		c.logLady.WithField("error", err).Error("Unable to delete value from pudge db")
 	}
 	return err
 }

@@ -14,3 +14,36 @@ A lot of our projects were starting to depend heavily on `nancy`, and it was slo
 You'll need Go 1.14, and that's about it!
 
 Everything can be run with `make` locally.
+
+### Usage
+
+This section is only created for suggested use of each package.
+
+#### OSS Index
+
+```golang
+// Setup fake logger, use a real one when you consume this package
+logger, _ := logrus.NewNullLogger()
+
+// Obtains a pointer to a OSSIndex struct
+ossindex := ossindex.New(logger, types.Options{Username: "username", Token: "token"})
+
+// Audits a slice of purls, returns results or an error
+results, err := ossindex.AuditPackages([]string{"a", "list", "of", "purls"})
+
+// Removes database cache
+err := ossindex.RemoveCacheDirectory()
+```
+
+#### IQ Server
+
+```golang
+// Setup fake logger, use a real one when you consume this package
+logger, _ := logrus.NewNullLogger()
+
+// Obtains a pointer to a IQServer struct
+iq := iq.New(logger, types.Options{Username: "username", Token: "token"})
+
+// Audits a slice of purls, given a public IQ Server application ID, and returns results or an error
+results, err := iq.AuditPackages([]string{"a", "list", "of", "purls"}, "public-application-id")
+```

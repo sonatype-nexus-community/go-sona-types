@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex/types"
 	"github.com/stretchr/testify/assert"
@@ -32,16 +31,10 @@ var coordinates []types.Coordinate
 
 var purls []string
 
-var logger *logrus.Logger
-
-func init() {
-	logger, _ = test.NewNullLogger()
-}
-
 func TestInsert(t *testing.T) {
 	cache := setupTestsAndCache(t)
 
-	err := cache.Insert(coordinates, logger)
+	err := cache.Insert(coordinates)
 	assert.Nil(t, err)
 
 	var result DBValue
@@ -56,10 +49,10 @@ func TestInsert(t *testing.T) {
 func TestGetWithRegularTTL(t *testing.T) {
 	cache := setupTestsAndCache(t)
 
-	err := cache.Insert(coordinates, logger)
+	err := cache.Insert(coordinates)
 	assert.Nil(t, err)
 
-	newPurls, results, err := cache.GetCacheValues(purls, logger)
+	newPurls, results, err := cache.GetCacheValues(purls)
 
 	assert.Empty(t, newPurls)
 	assert.Equal(t, results, coordinates)
@@ -70,12 +63,12 @@ func TestGetWithRegularTTL(t *testing.T) {
 
 func TestGetWithExpiredTTL(t *testing.T) {
 	cache := setupTestsAndCache(t)
-	cache.TTL = time.Now().AddDate(0, 0, -1)
+	cache.Options.TTL = time.Now().AddDate(0, 0, -1)
 
-	err := cache.Insert(coordinates, logger)
+	err := cache.Insert(coordinates)
 	assert.Nil(t, err)
 
-	newPurls, results, err := cache.GetCacheValues(purls, logger)
+	newPurls, results, err := cache.GetCacheValues(purls)
 
 	assert.Equal(t, purls, newPurls)
 	assert.Empty(t, results)
@@ -111,16 +104,17 @@ func setupTestsAndCache(t *testing.T) *Cache {
 	purls = append(purls, "pkg:golang/test@0.0.0")
 
 	coordinates = append(coordinates, coordinate)
-	cache := Cache{DBName: "nancy-cache-test", TTL: time.Now().Local().Add(time.Hour * 12)}
-	err := cache.RemoveCache(logger)
+	logger, _ := test.NewNullLogger()
+	cache := New(logger, Options{DBName: "nancy-cache-test", TTL: time.Now().Local().Add(time.Hour * 12)})
+	err := cache.RemoveCache()
 	if err != nil {
 		t.Error(err)
 	}
-	return &cache
+	return cache
 }
 
 func tearDown(t *testing.T, cache *Cache) {
-	err := cache.RemoveCache(logger)
+	err := cache.RemoveCache()
 	if err != nil {
 		t.Error(err)
 	}

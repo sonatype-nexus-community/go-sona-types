@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex/types"
 	"github.com/stretchr/testify/assert"
@@ -38,59 +37,57 @@ const purl = "pkg:github/BurntSushi/toml@0.3.1"
 var lowerCasePurl = strings.ToLower(purl)
 var expectedCoordinate types.Coordinate
 
-var logger *logrus.Logger
-
-func init() {
-	logger, _ = test.NewNullLogger()
-}
-
-func setupConfiguration() (config types.Configuration) {
-	config.Username = "user"
-	config.Token = "token"
+func setupOptions() (options types.Options) {
+	options.Username = "testuser"
+	options.Token = "test"
+	options.DBCacheName = "nancy-test"
 	return
 }
 
 func TestOssIndexUrlDefault(t *testing.T) {
 	setupTest(t)
-	ossIndexURL = ""
-	assert.Equal(t, defaultOssIndexURL, getOssIndexURL())
+	ossindex := setupOSSIndex(t)
+	assert.Equal(t, defaultOssIndexURL, ossindex.getOssIndexURL())
 }
 
 func TestAuditPackages_Empty(t *testing.T) {
 	setupTest(t)
+	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("No call should occur with empty package. called: %v", r)
 	}))
 	defer ts.Close()
-	ossIndexURL = ts.URL
+	ossindex.Options.OSSIndexURL = ts.URL
 
-	coordinates, err := AuditPackagesWithOSSIndex([]string{}, setupConfiguration(), logger)
+	coordinates, err := ossindex.AuditPackages([]string{})
 	assert.Equal(t, []types.Coordinate(nil), coordinates)
 	assert.Nil(t, err)
 }
 
 func TestAuditPackages_Nil(t *testing.T) {
 	setupTest(t)
+	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("No call should occur with nil package. called: %v", r)
 	}))
 	defer ts.Close()
-	ossIndexURL = ts.URL
+	ossindex.Options.OSSIndexURL = ts.URL
 
-	coordinates, err := AuditPackagesWithOSSIndex(nil, setupConfiguration(), logger)
+	coordinates, err := ossindex.AuditPackages(nil)
 	assert.Equal(t, []types.Coordinate(nil), coordinates)
 	assert.Nil(t, err)
 }
 
 func TestAuditPackages_ErrorHttpRequest(t *testing.T) {
 	setupTest(t)
+	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("No call should occur with nil package. called: %v", r)
 	}))
 	defer ts.Close()
-	ossIndexURL = ts.URL + "\\"
+	ossindex.Options.OSSIndexURL = ts.URL + "\\"
 
-	coordinates, err := AuditPackagesWithOSSIndex([]string{"nonexistent-purl"}, setupConfiguration(), logger)
+	coordinates, err := ossindex.AuditPackages([]string{"nonexistent-purl"})
 	assert.Equal(t, []types.Coordinate(nil), coordinates)
 	parseError := err.(*url.Error)
 	assert.Equal(t, "parse", parseError.Op)
@@ -98,6 +95,7 @@ func TestAuditPackages_ErrorHttpRequest(t *testing.T) {
 
 func TestAuditPackages_ErrorNonExistentPurl(t *testing.T) {
 	setupTest(t)
+	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
 		assert.Equal(t, "/", r.URL.EscapedPath())
@@ -105,15 +103,16 @@ func TestAuditPackages_ErrorNonExistentPurl(t *testing.T) {
 		w.WriteHeader(http.StatusBadRequest)
 	}))
 	defer ts.Close()
-	ossIndexURL = ts.URL
+	ossindex.Options.OSSIndexURL = ts.URL
 
-	coordinates, err := AuditPackagesWithOSSIndex([]string{"nonexistent-purl"}, setupConfiguration(), logger)
+	coordinates, err := ossindex.AuditPackages([]string{"nonexistent-purl"})
 	assert.Equal(t, []types.Coordinate(nil), coordinates)
 	assert.Equal(t, "An error occurred: [400 Bad Request] error accessing OSS Index", err.Error())
 }
 
 func TestAuditPackages_ErrorBadResponseBody(t *testing.T) {
 	setupTest(t)
+	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
 		assert.Equal(t, "/", r.URL.EscapedPath())
@@ -122,9 +121,9 @@ func TestAuditPackages_ErrorBadResponseBody(t *testing.T) {
 		_, _ = w.Write([]byte("badStuff"))
 	}))
 	defer ts.Close()
-	ossIndexURL = ts.URL
+	ossindex.Options.OSSIndexURL = ts.URL
 
-	coordinates, err := AuditPackagesWithOSSIndex([]string{purl}, setupConfiguration(), logger)
+	coordinates, err := ossindex.AuditPackages([]string{purl})
 
 	assert.Equal(t, []types.Coordinate(nil), coordinates)
 	jsonError := err.(*json.SyntaxError)
@@ -134,13 +133,14 @@ func TestAuditPackages_ErrorBadResponseBody(t *testing.T) {
 
 func TestAuditPackages_NewPackage(t *testing.T) {
 	setupTest(t)
+	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		verifyClientCallAndWriteValidPackageResponse(t, r, w)
 	}))
 	defer ts.Close()
-	ossIndexURL = ts.URL
+	ossindex.Options.OSSIndexURL = ts.URL
 
-	coordinates, err := AuditPackagesWithOSSIndex([]string{purl}, setupConfiguration(), logger)
+	coordinates, err := ossindex.AuditPackages([]string{purl})
 
 	assert.Equal(t, []types.Coordinate{expectedCoordinate}, coordinates)
 	assert.Nil(t, err)
@@ -157,35 +157,37 @@ func verifyClientCallAndWriteValidPackageResponse(t *testing.T, r *http.Request,
 
 func TestAuditPackages_SinglePackage_Cached(t *testing.T) {
 	setupTest(t)
+	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("No call should occur with previously cached package. called: %v", r)
 	}))
 	defer ts.Close()
-	ossIndexURL = ts.URL
+	ossindex.Options.OSSIndexURL = ts.URL
 
 	var tempCoordinates []types.Coordinate
 	tempCoordinates = append(tempCoordinates, expectedCoordinate)
 
-	err := dbCache.Insert(tempCoordinates, logger)
+	err := ossindex.dbCache.Insert(tempCoordinates)
 	if err != nil {
 		t.Error(err)
 	}
 
-	coordinates, err := AuditPackagesWithOSSIndex([]string{purl}, setupConfiguration(), logger)
+	coordinates, err := ossindex.AuditPackages([]string{purl})
 	assert.Equal(t, []types.Coordinate{expectedCoordinate}, coordinates)
 	assert.Nil(t, err)
 }
 
 func TestAuditPackages_SinglePackage_Cached_WithExpiredTTL(t *testing.T) {
 	setupTest(t)
+	ossindex := setupOSSIndex(t)
 
 	// Set the cache TTL to a date in the past for testing
-	dbCache.TTL = time.Now().AddDate(0, 0, -1)
+	ossindex.dbCache.Options.TTL = time.Now().AddDate(0, 0, -1)
 
 	var tempCoordinates []types.Coordinate
 	tempCoordinates = append(tempCoordinates, expectedCoordinate)
 
-	err := dbCache.Insert(tempCoordinates, logger)
+	err := ossindex.dbCache.Insert(tempCoordinates)
 	if err != nil {
 		t.Error(err)
 	}
@@ -194,11 +196,21 @@ func TestAuditPackages_SinglePackage_Cached_WithExpiredTTL(t *testing.T) {
 		verifyClientCallAndWriteValidPackageResponse(t, r, w)
 	}))
 	defer ts.Close()
-	ossIndexURL = ts.URL
+	ossindex.Options.OSSIndexURL = ts.URL
 
-	coordinates, err := AuditPackagesWithOSSIndex([]string{purl}, setupConfiguration(), logger)
+	coordinates, err := ossindex.AuditPackages([]string{purl})
 	assert.Equal(t, []types.Coordinate{expectedCoordinate}, coordinates)
 	assert.Nil(t, err)
+}
+
+func setupOSSIndex(t *testing.T) *OSSIndex {
+	logger, _ := test.NewNullLogger()
+	ossindex := New(logger, setupOptions())
+	err := ossindex.dbCache.RemoveCache()
+	if err != nil {
+		t.Error(err)
+	}
+	return ossindex
 }
 
 func setupTest(t *testing.T) {
@@ -219,17 +231,12 @@ func setupTest(t *testing.T) {
 			},
 		},
 	}
-	dbCache.DBName = "nancy-test"
-	err := dbCache.RemoveCache(logger)
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 func TestSetupRequest(t *testing.T) {
-	coordJson, _ := setupJson(t)
-	config := types.Configuration{Username: "testuser", Token: "test"}
-	req, err := setupRequest(coordJson, &config)
+	coordJSON, _ := setupJSON(t)
+	ossindex := setupOSSIndex(t)
+	req, err := ossindex.setupRequest(coordJSON)
 
 	assert.Equal(t, req.Header.Get("Content-Type"), "application/json")
 	assert.Equal(t, req.Method, "POST")
@@ -241,8 +248,8 @@ func TestSetupRequest(t *testing.T) {
 }
 
 // TODO: Use this for more than just TestSetupRequest
-func setupJson(t *testing.T) (coordJson []byte, err error) {
-	coordJson, err = json.Marshal(expectedCoordinate)
+func setupJSON(t *testing.T) (coordJSON []byte, err error) {
+	coordJSON, err = json.Marshal(expectedCoordinate)
 	if err != nil {
 		t.Errorf("Couldn't setup json")
 	}

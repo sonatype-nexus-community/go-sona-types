@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/jarcoal/httpmock"
-	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex/types"
 	"github.com/stretchr/testify/assert"
@@ -57,18 +56,12 @@ const pollingResult = `{
 	"isError": false
 }`
 
-var logger *logrus.Logger
-
-func init() {
-	logger, _ = test.NewNullLogger()
-}
-
-func setupIqConfiguration() (config Configuration) {
-	config.Application = "testapp"
-	config.Server = "http://sillyplace.com:8090"
-	config.Stage = "develop"
-	config.User = "admin"
-	config.Token = "admin123"
+func setupIqOptions() (options Options) {
+	options.Application = "testapp"
+	options.Server = "http://sillyplace.com:8090"
+	options.Stage = "develop"
+	options.User = "admin"
+	options.Token = "admin123"
 	return
 }
 
@@ -105,7 +98,9 @@ func TestAuditPackages(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	result, _ := AuditPackages(purls, "testapp", setupIqConfiguration(), logger)
+	iq := setupIQServer(t)
+
+	result, _ := iq.AuditPackages(purls, "testapp")
 
 	statusExpected := StatusURLResult{PolicyAction: "None", ReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e", IsError: false}
 
@@ -124,7 +119,9 @@ func TestAuditPackagesIqCannotLocateApplicationID(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	_, err := AuditPackages(purls, "testapp", setupIqConfiguration(), logger)
+	iq := setupIQServer(t)
+
+	_, err := iq.AuditPackages(purls, "testapp")
 	if err == nil {
 		t.Errorf("err should not be nil, expected an err with the following text: %s", expectedError)
 	}
@@ -160,7 +157,9 @@ func TestAuditPackagesIqDownOrUnreachable(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	_, err := AuditPackages(purls, "testapp", setupIqConfiguration(), logger)
+	iq := setupIQServer(t)
+
+	_, err := iq.AuditPackages(purls, "testapp")
 	if err == nil {
 		t.Error("There is an error")
 	}
@@ -196,8 +195,15 @@ func TestAuditPackagesIqUpButBadThirdPartyAPIResponse(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	_, err := AuditPackages(purls, "testapp", setupIqConfiguration(), logger)
+	iq := setupIQServer(t)
+
+	_, err := iq.AuditPackages(purls, "testapp")
 	if err == nil {
 		t.Error("There is an error")
 	}
+}
+
+func setupIQServer(t *testing.T) *IQServer {
+	logger, _ := test.NewNullLogger()
+	return &IQServer{logLady: logger, Options: setupIqOptions()}
 }

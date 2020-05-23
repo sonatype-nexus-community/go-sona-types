@@ -38,16 +38,6 @@ const thirdPartyAPILeft = "/api/v2/scan/applications/"
 
 const thirdPartyAPIRight = "/sources/nancy?stageId="
 
-const (
-	pollInterval = 1 * time.Second
-)
-
-var (
-	localConfig Configuration
-	logLady     *logrus.Logger
-	tries       = 0
-)
-
 // StatusURLResult is a struct to let the consumer know what the response from Nexus IQ Server was
 type StatusURLResult struct {
 	PolicyAction  string `json:"policyAction"`
@@ -76,19 +66,6 @@ type resultError struct {
 	err      error
 }
 
-type Configuration struct {
-	User          string
-	Token         string
-	Stage         string
-	Application   string
-	Server        string
-	MaxRetries    int
-	Tool          string
-	Version       string
-	OSSIndexUser  string
-	OSSIndexToken string
-}
-
 type IQServerError struct {
 	Err     error
 	Message string
@@ -101,30 +78,58 @@ func (i *IQServerError) Error() string {
 	return fmt.Sprintf("An error occurred: %s", i.Message)
 }
 
+type IQServer struct {
+	Options Options
+	logLady *logrus.Logger
+	tries   int
+}
+
+type Options struct {
+	User          string
+	Token         string
+	Stage         string
+	Application   string
+	Server        string
+	MaxRetries    int
+	Tool          string
+	Version       string
+	OSSIndexUser  string
+	OSSIndexToken string
+	PollInterval  time.Duration
+}
+
+func (i *IQServer) New(logger *logrus.Logger, options Options) *IQServer {
+	if options.PollInterval == 0 {
+		options.PollInterval = 1 * time.Second
+	}
+
+	return &IQServer{logLady: logger, Options: options, tries: 0}
+}
+
 // AuditPackages accepts a slice of purls, public application ID, and configuration, and will submit these to
 // Nexus IQ Server for audit, and return a struct of StatusURLResult
-func AuditPackages(purls []string, applicationID string, config Configuration, logger *logrus.Logger) (StatusURLResult, error) {
-	logLady = logger
-	logLady.WithFields(logrus.Fields{
+func (i *IQServer) AuditPackages(purls []string, applicationID string) (StatusURLResult, error) {
+	i.logLady.WithFields(logrus.Fields{
 		"purls":          purls,
 		"application_id": applicationID,
 	}).Info("Beginning audit with IQ")
-	localConfig = config
 
-	if localConfig.User == "admin" && localConfig.Token == "admin123" {
-		logLady.Info("Warning user of questionable life choices related to username and password")
+	if i.Options.User == "admin" && i.Options.Token == "admin123" {
+		i.logLady.Info("Warning user of questionable life choices related to username and password")
 		warnUserOfBadLifeChoices()
 	}
 
-	internalID, err := getInternalApplicationID(applicationID)
+	internalID, err := i.getInternalApplicationID(applicationID)
 	if internalID == "" && err != nil {
-		logLady.Error("Internal ID not obtained from Nexus IQ")
+		i.logLady.Error("Internal ID not obtained from Nexus IQ")
 		return statusURLResp, err
 	}
 
-	ossIndexConfig := types.Configuration{Username: localConfig.OSSIndexUser, Token: localConfig.OSSIndexToken}
+	ossIndexOptions := types.Options{Username: i.Options.OSSIndexUser, Token: i.Options.OSSIndexToken}
 
-	resultsFromOssIndex, err := ossindex.AuditPackagesWithOSSIndex(purls, ossIndexConfig, logLady)
+	ossi := ossindex.New(i.logLady, ossIndexOptions)
+
+	resultsFromOssIndex, err := ossi.AuditPackages(purls)
 	if err != nil {
 		return statusURLResp, &IQServerError{
 			Err:     err,
@@ -132,14 +137,14 @@ func AuditPackages(purls []string, applicationID string, config Configuration, l
 		}
 	}
 
-	sbom := cyclonedx.ProcessPurlsIntoSBOM(resultsFromOssIndex, logLady)
-	logLady.WithField("sbom", sbom).Debug("Obtained cyclonedx SBOM")
+	sbom := cyclonedx.ProcessPurlsIntoSBOM(resultsFromOssIndex, i.logLady)
+	i.logLady.WithField("sbom", sbom).Debug("Obtained cyclonedx SBOM")
 
-	logLady.WithFields(logrus.Fields{
+	i.logLady.WithFields(logrus.Fields{
 		"internal_id": internalID,
 		"sbom":        sbom,
 	}).Debug("Submitting to Third Party API")
-	statusURL, err := submitToThirdPartyAPI(sbom, internalID)
+	statusURL, err := i.submitToThirdPartyAPI(sbom, internalID)
 	if err != nil {
 		return statusURLResp, &IQServerError{
 			Err:     err,
@@ -147,7 +152,7 @@ func AuditPackages(purls []string, applicationID string, config Configuration, l
 		}
 	}
 	if statusURL == "" {
-		logLady.Error("StatusURL not obtained from Third Party API")
+		i.logLady.Error("StatusURL not obtained from Third Party API")
 		return statusURLResp, &IQServerError{
 			Err:     fmt.Errorf("There was an issue submitting your sbom to the Nexus IQ Third Party API, sbom: %s", sbom),
 			Message: "There was an issue obtaining a StatusURL",
@@ -164,10 +169,10 @@ func AuditPackages(purls []string, applicationID string, config Configuration, l
 			case <-finishedChan:
 				return resultError{finished: true}
 			default:
-				if err = pollIQServer(fmt.Sprintf("%s/%s", localConfig.Server, statusURL), finishedChan, localConfig.MaxRetries); err != nil {
+				if err = i.pollIQServer(fmt.Sprintf("%s/%s", i.Options.Server, statusURL), finishedChan); err != nil {
 					return resultError{finished: false, err: err}
 				}
-				time.Sleep(pollInterval)
+				time.Sleep(i.Options.PollInterval)
 			}
 		}
 	}()
@@ -176,12 +181,12 @@ func AuditPackages(purls []string, applicationID string, config Configuration, l
 	return statusURLResp, r.err
 }
 
-func getInternalApplicationID(applicationID string) (string, error) {
+func (i *IQServer) getInternalApplicationID(applicationID string) (string, error) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s%s%s", localConfig.Server, internalApplicationIDURL, applicationID),
+		fmt.Sprintf("%s%s%s", i.Options.Server, internalApplicationIDURL, applicationID),
 		nil,
 	)
 	if err != nil {
@@ -191,8 +196,8 @@ func getInternalApplicationID(applicationID string) (string, error) {
 		}
 	}
 
-	req.SetBasicAuth(localConfig.User, localConfig.Token)
-	req.Header.Set("User-Agent", useragent.GetUserAgent(logLady, localConfig.Version))
+	req.SetBasicAuth(i.Options.User, i.Options.Token)
+	req.Header.Set("User-Agent", useragent.GetUserAgent(i.logLady, i.Options.Version))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -224,14 +229,14 @@ func getInternalApplicationID(applicationID string) (string, error) {
 		}
 
 		if response.Applications != nil && len(response.Applications) > 0 {
-			logLady.WithFields(logrus.Fields{
+			i.logLady.WithFields(logrus.Fields{
 				"internal_id": response.Applications[0].ID,
 			}).Debug("Retrieved internal ID from Nexus IQ Server")
 
 			return response.Applications[0].ID, nil
 		}
 
-		logLady.WithFields(logrus.Fields{
+		i.logLady.WithFields(logrus.Fields{
 			"application_id": applicationID,
 		}).Error("Unable to retrieve an internal ID for the specified public application ID")
 
@@ -240,7 +245,7 @@ func getInternalApplicationID(applicationID string) (string, error) {
 			Message: "Unable to retrieve an internal ID",
 		}
 	}
-	logLady.WithFields(logrus.Fields{
+	i.logLady.WithFields(logrus.Fields{
 		"status_code": resp.StatusCode,
 	}).Error("Error communicating with Nexus IQ Server application endpoint")
 	return "", &IQServerError{
@@ -249,12 +254,12 @@ func getInternalApplicationID(applicationID string) (string, error) {
 	}
 }
 
-func submitToThirdPartyAPI(sbom string, internalID string) (string, error) {
-	logLady.Debug("Beginning to submit to Third Party API")
+func (i *IQServer) submitToThirdPartyAPI(sbom string, internalID string) (string, error) {
+	i.logLady.Debug("Beginning to submit to Third Party API")
 	client := &http.Client{}
 
-	url := fmt.Sprintf("%s%s", localConfig.Server, fmt.Sprintf("%s%s%s%s", thirdPartyAPILeft, internalID, thirdPartyAPIRight, localConfig.Stage))
-	logLady.WithField("url", url).Debug("Crafted URL for submission to Third Party API")
+	url := fmt.Sprintf("%s%s", i.Options.Server, fmt.Sprintf("%s%s%s%s", thirdPartyAPILeft, internalID, thirdPartyAPIRight, i.Options.Stage))
+	i.logLady.WithField("url", url).Debug("Crafted URL for submission to Third Party API")
 
 	req, err := http.NewRequest(
 		"POST",
@@ -268,8 +273,8 @@ func submitToThirdPartyAPI(sbom string, internalID string) (string, error) {
 		}
 	}
 
-	req.SetBasicAuth(localConfig.User, localConfig.Token)
-	req.Header.Set("User-Agent", useragent.GetUserAgent(logLady, localConfig.Version))
+	req.SetBasicAuth(i.Options.User, i.Options.Token)
+	req.Header.Set("User-Agent", useragent.GetUserAgent(i.logLady, i.Options.Version))
 	req.Header.Set("Content-Type", "application/xml")
 
 	resp, err := client.Do(req)
@@ -285,7 +290,7 @@ func submitToThirdPartyAPI(sbom string, internalID string) (string, error) {
 
 	if resp.StatusCode == http.StatusAccepted {
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
-		logLady.WithField("body", string(bodyBytes)).Info("Request accepted")
+		i.logLady.WithField("body", string(bodyBytes)).Info("Request accepted")
 		if err != nil {
 			return "", &IQServerError{
 				Err:     err,
@@ -304,7 +309,7 @@ func submitToThirdPartyAPI(sbom string, internalID string) (string, error) {
 		return response.StatusURL, err
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	logLady.WithFields(logrus.Fields{
+	i.logLady.WithFields(logrus.Fields{
 		"body":        string(bodyBytes),
 		"status_code": resp.StatusCode,
 		"status":      resp.Status,
@@ -319,14 +324,14 @@ func submitToThirdPartyAPI(sbom string, internalID string) (string, error) {
 	return "", err
 }
 
-func pollIQServer(statusURL string, finished chan resultError, maxRetries int) error {
-	logLady.WithFields(logrus.Fields{
-		"attempt_number": tries,
-		"max_retries":    maxRetries,
+func (i *IQServer) pollIQServer(statusURL string, finished chan resultError) error {
+	i.logLady.WithFields(logrus.Fields{
+		"attempt_number": i.tries,
+		"max_retries":    i.Options.MaxRetries,
 		"status_url":     statusURL,
 	}).Trace("Polling Nexus IQ for response")
-	if tries > maxRetries {
-		logLady.Error("Maximum tries exceeded, finished polling, consider bumping up Max Retries")
+	if i.tries > i.Options.MaxRetries {
+		i.logLady.Error("Maximum tries exceeded, finished polling, consider bumping up Max Retries")
 		finished <- resultError{finished: true, err: nil}
 	}
 
@@ -339,9 +344,9 @@ func pollIQServer(statusURL string, finished chan resultError, maxRetries int) e
 		}
 	}
 
-	req.SetBasicAuth(localConfig.User, localConfig.Token)
+	req.SetBasicAuth(i.Options.User, i.Options.Token)
 
-	req.Header.Set("User-Agent", useragent.GetUserAgent(logLady, localConfig.Version))
+	req.Header.Set("User-Agent", useragent.GetUserAgent(i.logLady, i.Options.Version))
 
 	resp, err := client.Do(req)
 
@@ -379,7 +384,7 @@ func pollIQServer(statusURL string, finished chan resultError, maxRetries int) e
 		}
 		finished <- resultError{finished: true, err: nil}
 	}
-	tries++
+	i.tries++
 	fmt.Print(".")
 	return err
 }
