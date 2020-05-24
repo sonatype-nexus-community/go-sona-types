@@ -42,8 +42,8 @@ type OSSIndex struct {
 	dbCache *cache.Cache
 }
 
-// RemoveCacheDirectory deletes the local database directory.
-func (o *OSSIndex) RemoveCacheDirectory() error {
+// NoCacheNoProblems deletes the local database directory.
+func (o *OSSIndex) NoCacheNoProblems() error {
 	return o.dbCache.RemoveCache()
 }
 
