@@ -47,21 +47,8 @@ func (o *OSSIndex) NoCacheNoProblems() error {
 	return o.dbCache.RemoveCache()
 }
 
-func (o *OSSIndex) getOssIndexURL() string {
-	if o.Options.OSSIndexURL == "" {
-		o.Options.OSSIndexURL = defaultOssIndexURL
-	}
-	return o.Options.OSSIndexURL
-}
-
+// New is intended to be the way to obtain a ossindex instance, where you have control of the options
 func New(logger *logrus.Logger, options types.Options) *OSSIndex {
-	if options.DBCacheName == "" {
-		options.DBCacheName = "nancy-cache"
-	}
-	if options.TTL.IsZero() {
-		options.TTL = time.Now().Local().Add(time.Hour * 12)
-	}
-
 	return &OSSIndex{
 		logLady: logger,
 		Options: options,
@@ -70,6 +57,18 @@ func New(logger *logrus.Logger, options types.Options) *OSSIndex {
 			TTL:    options.TTL,
 		}),
 	}
+}
+
+// Default is intended to be a way to obtain a ossindex instance, with rational defaults set
+func Default(logger *logrus.Loggers) *OSSIndex {
+	return New(logger, &OSSIndex{
+		logLady: logger,
+		Options: options,
+		dbCache: cache.New(logger, cache.Options{
+			DBName: "nancy-cache",
+			TTL:    time.Now().Local().Add(time.Hour * 12),
+		}),
+	)
 }
 
 // AuditPackages will given a slice of Package URLs run an OSS Index audit, and return the result
@@ -195,4 +194,11 @@ func chunk(purls []string, chunkSize int) [][]string {
 	}
 
 	return divided
+}
+
+func (o *OSSIndex) getOssIndexURL() string {
+	if o.Options.OSSIndexURL == "" {
+		o.Options.OSSIndexURL = defaultOssIndexURL
+	}
+	return o.Options.OSSIndexURL
 }

@@ -25,14 +25,17 @@ This section is only created for suggested use of each package.
 // Setup fake logger, use a real one when you consume this package
 logger, _ := logrus.NewNullLogger()
 
-// Obtains a pointer to a OSSIndex struct
-ossindex := ossindex.New(logger, types.Options{Username: "username", Token: "token"})
+// Obtains a pointer to an OSSIndex struct, with rational defaults set
+ossi := ossindex.Default(logger)
+
+// Obtains a pointer to an OSSIndex struct, with options you set
+ossi = ossindex.New(loggger, types.Options{Username: "username", Token: "token"})
 
 // Audits a slice of purls, returns results or an error
-results, err := ossindex.AuditPackages([]string{"a", "list", "of", "purls"})
+results, err := ossi.AuditPackages([]string{"a", "list", "of", "purls"})
 
 // Removes database cache
-err := ossindex.RemoveCacheDirectory()
+err = ossi.NoCacheNoProblems()
 ```
 
 #### IQ Server

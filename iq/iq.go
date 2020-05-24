@@ -98,8 +98,10 @@ type Options struct {
 	PollInterval  time.Duration
 }
 
+// New is intended to be the way to obtain a iq instance, where you control the options
 func (i *IQServer) New(logger *logrus.Logger, options Options) *IQServer {
 	if options.PollInterval == 0 {
+		logger.Trace("Setting Poll Interval to 1 second since it wasn't set explicitly")
 		options.PollInterval = 1 * time.Second
 	}
 
