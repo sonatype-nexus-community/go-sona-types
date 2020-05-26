@@ -25,10 +25,10 @@ This section is only created for suggested use of each package.
 // Setup fake logger, use a real one when you consume this package
 logger, _ := logrus.NewNullLogger()
 
-// Obtains a pointer to an OSSIndex struct, with rational defaults set
+// Obtains a pointer to an Server struct, with rational defaults set
 ossi := ossindex.Default(logger)
 
-// Obtains a pointer to an OSSIndex struct, with options you set
+// Obtains a pointer to an Server struct, with options you set
 ossi = ossindex.New(loggger, types.Options{Username: "username", Token: "token"})
 
 // Audits a slice of purls, returns results or an error
@@ -44,7 +44,7 @@ err = ossi.NoCacheNoProblems()
 // Setup fake logger, use a real one when you consume this package
 logger, _ := logrus.NewNullLogger()
 
-// Obtains a pointer to a IQServer struct
+// Obtains a pointer to a Server struct
 iq := iq.New(logger, types.Options{Username: "username", Token: "token"})
 
 // Audits a slice of purls, given a public IQ Server application ID, and returns results or an error

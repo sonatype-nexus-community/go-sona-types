@@ -66,19 +66,23 @@ type resultError struct {
 	err      error
 }
 
-type IQServerError struct {
+// ServerError is a custom error type that can be used to differentiate between
+// regular errors and errors specific to handling IQ Server
+type ServerError struct {
 	Err     error
 	Message string
 }
 
-func (i *IQServerError) Error() string {
+func (i *ServerError) Error() string {
 	if i.Err != nil {
 		return fmt.Sprintf("An error occurred: %s, err: %s", i.Message, i.Err.Error())
 	}
 	return fmt.Sprintf("An error occurred: %s", i.Message)
 }
 
-type IQServer struct {
+// Server is a struct that holds the IQ Server options, logger and other properties related to
+// communicating with Nexus IQ Server
+type Server struct {
 	Options Options
 	logLady *logrus.Logger
 	tries   int
@@ -101,18 +105,18 @@ type Options struct {
 }
 
 // New is intended to be the way to obtain a iq instance, where you control the options
-func (i *IQServer) New(logger *logrus.Logger, options Options) *IQServer {
+func (i *Server) New(logger *logrus.Logger, options Options) *Server {
 	if options.PollInterval == 0 {
 		logger.Trace("Setting Poll Interval to 1 second since it wasn't set explicitly")
 		options.PollInterval = 1 * time.Second
 	}
 
-	return &IQServer{logLady: logger, Options: options, tries: 0}
+	return &Server{logLady: logger, Options: options, tries: 0}
 }
 
 // AuditPackages accepts a slice of purls, public application ID, and configuration, and will submit these to
 // Nexus IQ Server for audit, and return a struct of StatusURLResult
-func (i *IQServer) AuditPackages(purls []string, applicationID string) (StatusURLResult, error) {
+func (i *Server) AuditPackages(purls []string, applicationID string) (StatusURLResult, error) {
 	i.logLady.WithFields(logrus.Fields{
 		"purls":          purls,
 		"application_id": applicationID,
@@ -140,7 +144,7 @@ func (i *IQServer) AuditPackages(purls []string, applicationID string) (StatusUR
 
 	resultsFromOssIndex, err := ossi.AuditPackages(purls)
 	if err != nil {
-		return statusURLResp, &IQServerError{
+		return statusURLResp, &ServerError{
 			Err:     err,
 			Message: "There was an issue auditing packages using OSS Index",
 		}
@@ -157,14 +161,14 @@ func (i *IQServer) AuditPackages(purls []string, applicationID string) (StatusUR
 	}).Debug("Submitting to Third Party API")
 	statusURL, err := i.submitToThirdPartyAPI(sbom, internalID)
 	if err != nil {
-		return statusURLResp, &IQServerError{
+		return statusURLResp, &ServerError{
 			Err:     err,
 			Message: "There was an issue submitting to the Third Party API",
 		}
 	}
 	if statusURL == "" {
 		i.logLady.Error("StatusURL not obtained from Third Party API")
-		return statusURLResp, &IQServerError{
+		return statusURLResp, &ServerError{
 			Err:     fmt.Errorf("There was an issue submitting your sbom to the Nexus IQ Third Party API, sbom: %s", sbom),
 			Message: "There was an issue obtaining a StatusURL",
 		}
@@ -192,7 +196,7 @@ func (i *IQServer) AuditPackages(purls []string, applicationID string) (StatusUR
 	return statusURLResp, r.err
 }
 
-func (i *IQServer) getInternalApplicationID(applicationID string) (string, error) {
+func (i *Server) getInternalApplicationID(applicationID string) (string, error) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest(
@@ -201,7 +205,7 @@ func (i *IQServer) getInternalApplicationID(applicationID string) (string, error
 		nil,
 	)
 	if err != nil {
-		return "", &IQServerError{
+		return "", &ServerError{
 			Err:     err,
 			Message: "Request to get internal application id failed",
 		}
@@ -212,7 +216,7 @@ func (i *IQServer) getInternalApplicationID(applicationID string) (string, error
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", &IQServerError{
+		return "", &ServerError{
 			Err:     err,
 			Message: "There was an error communicating with Nexus IQ Server to get your internal application ID",
 		}
@@ -224,7 +228,7 @@ func (i *IQServer) getInternalApplicationID(applicationID string) (string, error
 	if resp.StatusCode == http.StatusOK {
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return "", &IQServerError{
+			return "", &ServerError{
 				Err:     err,
 				Message: "There was an error retrieving the bytes of the response for getting your internal application ID from Nexus IQ Server",
 			}
@@ -233,7 +237,7 @@ func (i *IQServer) getInternalApplicationID(applicationID string) (string, error
 		var response applicationResponse
 		err = json.Unmarshal(bodyBytes, &response)
 		if err != nil {
-			return "", &IQServerError{
+			return "", &ServerError{
 				Err:     err,
 				Message: "failed to unmarshal response",
 			}
@@ -251,7 +255,7 @@ func (i *IQServer) getInternalApplicationID(applicationID string) (string, error
 			"application_id": applicationID,
 		}).Error("Unable to retrieve an internal ID for the specified public application ID")
 
-		return "", &IQServerError{
+		return "", &ServerError{
 			Err:     fmt.Errorf("Unable to retrieve an internal ID for the specified public application ID: %s", applicationID),
 			Message: "Unable to retrieve an internal ID",
 		}
@@ -259,13 +263,13 @@ func (i *IQServer) getInternalApplicationID(applicationID string) (string, error
 	i.logLady.WithFields(logrus.Fields{
 		"status_code": resp.StatusCode,
 	}).Error("Error communicating with Nexus IQ Server application endpoint")
-	return "", &IQServerError{
+	return "", &ServerError{
 		Err:     fmt.Errorf("Unable to communicate with Nexus IQ Server, status code returned is: %d", resp.StatusCode),
 		Message: "Unable to communicate with Nexus IQ Server",
 	}
 }
 
-func (i *IQServer) submitToThirdPartyAPI(sbom string, internalID string) (string, error) {
+func (i *Server) submitToThirdPartyAPI(sbom string, internalID string) (string, error) {
 	i.logLady.Debug("Beginning to submit to Third Party API")
 	client := &http.Client{}
 
@@ -278,7 +282,7 @@ func (i *IQServer) submitToThirdPartyAPI(sbom string, internalID string) (string
 		bytes.NewBuffer([]byte(sbom)),
 	)
 	if err != nil {
-		return "", &IQServerError{
+		return "", &ServerError{
 			Err:     err,
 			Message: "Could not POST to Nexus iQ Third Party API",
 		}
@@ -290,7 +294,7 @@ func (i *IQServer) submitToThirdPartyAPI(sbom string, internalID string) (string
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", &IQServerError{
+		return "", &ServerError{
 			Err:     err,
 			Message: "There was an issue communicating with the Nexus IQ Third Party API",
 		}
@@ -303,7 +307,7 @@ func (i *IQServer) submitToThirdPartyAPI(sbom string, internalID string) (string
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		i.logLady.WithField("body", string(bodyBytes)).Info("Request accepted")
 		if err != nil {
-			return "", &IQServerError{
+			return "", &ServerError{
 				Err:     err,
 				Message: "There was an issue submitting your sbom to the Nexus IQ Third Party API",
 			}
@@ -312,7 +316,7 @@ func (i *IQServer) submitToThirdPartyAPI(sbom string, internalID string) (string
 		var response thirdPartyAPIResult
 		err = json.Unmarshal(bodyBytes, &response)
 		if err != nil {
-			return "", &IQServerError{
+			return "", &ServerError{
 				Err:     err,
 				Message: "Could not unmarshal response from IQ server",
 			}
@@ -326,7 +330,7 @@ func (i *IQServer) submitToThirdPartyAPI(sbom string, internalID string) (string
 		"status":      resp.Status,
 	}).Info("Request not accepted")
 	if err != nil {
-		return "", &IQServerError{
+		return "", &ServerError{
 			Err:     err,
 			Message: "There was an issue submitting your sbom to the Nexus IQ Third Party API",
 		}
@@ -335,7 +339,7 @@ func (i *IQServer) submitToThirdPartyAPI(sbom string, internalID string) (string
 	return "", err
 }
 
-func (i *IQServer) pollIQServer(statusURL string, finished chan resultError) error {
+func (i *Server) pollIQServer(statusURL string, finished chan resultError) error {
 	i.logLady.WithFields(logrus.Fields{
 		"attempt_number": i.tries,
 		"max_retries":    i.Options.MaxRetries,
@@ -349,7 +353,7 @@ func (i *IQServer) pollIQServer(statusURL string, finished chan resultError) err
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", statusURL, nil)
 	if err != nil {
-		return &IQServerError{
+		return &ServerError{
 			Err:     err,
 			Message: "Could not poll IQ server",
 		}
@@ -363,7 +367,7 @@ func (i *IQServer) pollIQServer(statusURL string, finished chan resultError) err
 
 	if err != nil {
 		finished <- resultError{finished: true, err: err}
-		return &IQServerError{
+		return &ServerError{
 			Err:     err,
 			Message: "There was an error polling Nexus IQ Server",
 		}
@@ -375,7 +379,7 @@ func (i *IQServer) pollIQServer(statusURL string, finished chan resultError) err
 	if resp.StatusCode == http.StatusOK {
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return &IQServerError{
+			return &ServerError{
 				Err:     err,
 				Message: "There was an error with processing the response from polling Nexus IQ Server",
 			}
@@ -384,7 +388,7 @@ func (i *IQServer) pollIQServer(statusURL string, finished chan resultError) err
 		var response StatusURLResult
 		err = json.Unmarshal(bodyBytes, &response)
 		if err != nil {
-			return &IQServerError{
+			return &ServerError{
 				Err:     err,
 				Message: "Could not unmarshal response from IQ server",
 			}

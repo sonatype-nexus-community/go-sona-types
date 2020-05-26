@@ -204,7 +204,7 @@ func TestAuditPackages_SinglePackage_Cached_WithExpiredTTL(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func setupOSSIndex(t *testing.T) *OSSIndex {
+func setupOSSIndex(t *testing.T) *Server {
 	logger, _ := test.NewNullLogger()
 	ossindex := New(logger, setupOptions())
 	err := ossindex.dbCache.RemoveCache()

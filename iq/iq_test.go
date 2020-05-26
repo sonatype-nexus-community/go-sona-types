@@ -65,6 +65,7 @@ func setupIqOptions() (options Options) {
 	options.Token = "admin123"
 	options.DBCacheName = "nancy-iq-test"
 	options.TTL = time.Now().Local().Add(time.Hour * 12)
+	options.MaxRetries = 1
 	return
 }
 
@@ -206,7 +207,7 @@ func TestAuditPackagesIqUpButBadThirdPartyAPIResponse(t *testing.T) {
 	}
 }
 
-func setupIQServer(t *testing.T) *IQServer {
+func setupIQServer(t *testing.T) *Server {
 	logger, _ := test.NewNullLogger()
-	return &IQServer{logLady: logger, Options: setupIqOptions()}
+	return &Server{logLady: logger, Options: setupIqOptions()}
 }

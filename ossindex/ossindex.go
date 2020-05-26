@@ -36,20 +36,22 @@ const defaultOssIndexURL = "https://ossindex.sonatype.org/api/v3/component-repor
 // MaxCoords is the maximum amount of coords to query OSS Index with at one time
 const MaxCoords = 128
 
-type OSSIndex struct {
+// Server is a struct that holds the OSS Index options, logger and other properties related to
+// communicating with OSS Index
+type Server struct {
 	Options types.Options
 	logLady *logrus.Logger
 	dbCache *cache.Cache
 }
 
 // NoCacheNoProblems deletes the local database directory.
-func (o *OSSIndex) NoCacheNoProblems() error {
+func (o *Server) NoCacheNoProblems() error {
 	return o.dbCache.RemoveCache()
 }
 
 // New is intended to be the way to obtain a ossindex instance, where you have control of the options
-func New(logger *logrus.Logger, options types.Options) *OSSIndex {
-	return &OSSIndex{
+func New(logger *logrus.Logger, options types.Options) *Server {
+	return &Server{
 		logLady: logger,
 		Options: options,
 		dbCache: cache.New(logger, cache.Options{
@@ -60,7 +62,7 @@ func New(logger *logrus.Logger, options types.Options) *OSSIndex {
 }
 
 // Default is intended to be a way to obtain a ossindex instance, with rational defaults set
-func Default(logger *logrus.Logger) *OSSIndex {
+func Default(logger *logrus.Logger) *Server {
 	return New(logger,
 		types.Options{
 			DBCacheName: "nancy-cache",
@@ -69,11 +71,11 @@ func Default(logger *logrus.Logger) *OSSIndex {
 }
 
 // AuditPackages will given a slice of Package URLs run an OSS Index audit, and return the result
-func (o *OSSIndex) AuditPackages(purls []string) ([]types.Coordinate, error) {
+func (o *Server) AuditPackages(purls []string) ([]types.Coordinate, error) {
 	return o.doAuditPackages(purls)
 }
 
-func (o *OSSIndex) doAuditPackages(purls []string) ([]types.Coordinate, error) {
+func (o *Server) doAuditPackages(purls []string) ([]types.Coordinate, error) {
 	newPurls, results, err := o.dbCache.GetCacheValues(purls)
 	if err != nil {
 		return nil, &types.OSSIndexError{
@@ -108,7 +110,7 @@ func (o *OSSIndex) doAuditPackages(purls []string) ([]types.Coordinate, error) {
 	return results, nil
 }
 
-func (o *OSSIndex) doRequestToOSSIndex(jsonStr []byte) (coordinates []types.Coordinate, err error) {
+func (o *Server) doRequestToOSSIndex(jsonStr []byte) (coordinates []types.Coordinate, err error) {
 	req, err := o.setupRequest(jsonStr)
 	if err != nil {
 		return
@@ -152,7 +154,7 @@ func (o *OSSIndex) doRequestToOSSIndex(jsonStr []byte) (coordinates []types.Coor
 	return
 }
 
-func (o *OSSIndex) setupRequest(jsonStr []byte) (req *http.Request, err error) {
+func (o *Server) setupRequest(jsonStr []byte) (req *http.Request, err error) {
 	o.logLady.WithField("json_string", string(jsonStr)).Debug("Setting up new POST request to OSS Index")
 	req, err = http.NewRequest(
 		"POST",
@@ -193,7 +195,7 @@ func chunk(purls []string, chunkSize int) [][]string {
 	return divided
 }
 
-func (o *OSSIndex) getOssIndexURL() string {
+func (o *Server) getOssIndexURL() string {
 	if o.Options.OSSIndexURL == "" {
 		o.Options.OSSIndexURL = defaultOssIndexURL
 	}
