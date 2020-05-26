@@ -85,6 +85,7 @@ func (i *ServerError) Error() string {
 type Server struct {
 	Options Options
 	logLady *logrus.Logger
+	agent   *useragent.Agent
 	tries   int
 }
 
@@ -105,13 +106,15 @@ type Options struct {
 }
 
 // New is intended to be the way to obtain a iq instance, where you control the options
-func (i *Server) New(logger *logrus.Logger, options Options) *Server {
+func New(logger *logrus.Logger, options Options) *Server {
 	if options.PollInterval == 0 {
 		logger.Trace("Setting Poll Interval to 1 second since it wasn't set explicitly")
 		options.PollInterval = 1 * time.Second
 	}
 
-	return &Server{logLady: logger, Options: options, tries: 0}
+	ua := useragent.New(logger, useragent.Options{ClientTool: options.Tool, Version: options.Version})
+
+	return &Server{logLady: logger, Options: options, tries: 0, agent: ua}
 }
 
 // AuditPackages accepts a slice of purls, public application ID, and configuration, and will submit these to
@@ -212,7 +215,7 @@ func (i *Server) getInternalApplicationID(applicationID string) (string, error) 
 	}
 
 	req.SetBasicAuth(i.Options.User, i.Options.Token)
-	req.Header.Set("User-Agent", useragent.GetUserAgent(i.logLady, i.Options.Version))
+	req.Header.Set("User-Agent", i.agent.GetUserAgent())
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -289,7 +292,7 @@ func (i *Server) submitToThirdPartyAPI(sbom string, internalID string) (string, 
 	}
 
 	req.SetBasicAuth(i.Options.User, i.Options.Token)
-	req.Header.Set("User-Agent", useragent.GetUserAgent(i.logLady, i.Options.Version))
+	req.Header.Set("User-Agent", i.agent.GetUserAgent())
 	req.Header.Set("Content-Type", "application/xml")
 
 	resp, err := client.Do(req)
@@ -361,7 +364,7 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 
 	req.SetBasicAuth(i.Options.User, i.Options.Token)
 
-	req.Header.Set("User-Agent", useragent.GetUserAgent(i.logLady, i.Options.Version))
+	req.Header.Set("User-Agent", i.agent.GetUserAgent())
 
 	resp, err := client.Do(req)
 

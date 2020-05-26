@@ -34,6 +34,7 @@ type Options struct {
 	CleanCache  bool
 	Username    string
 	Token       string
+	Tool        string
 	OSSIndexURL string
 	DBCacheName string
 	TTL         time.Time

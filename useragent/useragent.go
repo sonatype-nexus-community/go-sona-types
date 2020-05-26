@@ -25,24 +25,42 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Variables that can be overriden (primarily for tests), or for consumers
-var (
-	GOOS       = runtime.GOOS
-	GOARCH     = runtime.GOARCH
-	CLIENTTOOL = "nancy-client"
-	logLady    *logrus.Logger
-	version    string
-)
+// Agent is a struct that holds the User-Agent options, logger and other properties related to
+// obtaining a properly formatted user-agent
+type Agent struct {
+	Options Options
+	logLady *logrus.Logger
+}
+
+// Options is a struct that holds the User-Agent options
+type Options struct {
+	GoOS       string
+	GoArch     string
+	ClientTool string
+	Version    string
+}
+
+func New(logger *logrus.Logger, options Options) *Agent {
+	return &Agent{Options: options, logLady: logger}
+}
+
+func Default(logger *logrus.Logger) *Agent {
+	options := Options{
+		Version:    "development",
+		GoArch:     runtime.GOARCH,
+		GoOS:       runtime.GOOS,
+		ClientTool: "nancy-client",
+	}
+	return New(logger, options)
+}
 
 // GetUserAgent provides a user-agent to nancy that provides info on what version of nancy
 // (or upstream consumers like ahab or cheque) is running, and if the process is being run in
 // CI. If so, it looks for what CI system, and other information such as SC_CALLER_INFO which
 // can be used to tell if nancy is being ran inside an orb, bitbucket pipeline, etc... that
 // we authored
-func GetUserAgent(logger *logrus.Logger, toolVersion string) string {
-	version = toolVersion
-	logLady = logger
-	logLady.Debug("Obtaining User Agent")
+func (a *Agent) GetUserAgent() string {
+	a.logLady.Debug("Obtaining User Agent")
 	// where callTree format is:
 	// toolName__toolVersion___subToolName__subToolVersion___subSubToolName__subSubToolVersion
 	//
@@ -50,53 +68,53 @@ func GetUserAgent(logger *logrus.Logger, toolVersion string) string {
 	// triple underscore "___" delimits currentCaller/priorCaller/priorPriorCaller
 	callTree := getCallerInfo()
 	if checkForCIEnvironment() {
-		return checkCIEnvironments(callTree)
+		return a.checkCIEnvironments(callTree)
 	}
-	return getUserAgent("non ci usage", callTree)
+	return a.getUserAgent("non ci usage", callTree)
 }
 
-func getUserAgentBaseAndVersion() (baseAgent string) {
-	logLady.Trace("Attempting to obtain user agent and version")
-	baseAgent = fmt.Sprintf("%s/%s", CLIENTTOOL, version)
-	logLady.WithField("user_agent_base", baseAgent).Trace("Obtained user agent and version")
+func (a *Agent) getUserAgentBaseAndVersion() (baseAgent string) {
+	a.logLady.Trace("Attempting to obtain user agent and version")
+	baseAgent = fmt.Sprintf("%s/%s", a.Options.ClientTool, a.Options.Version)
+	a.logLady.WithField("user_agent_base", baseAgent).Trace("Obtained user agent and version")
 	return
 }
 
-func checkCIEnvironments(callTree string) string {
+func (a *Agent) checkCIEnvironments(callTree string) string {
 	if checkForCISystem("CIRCLECI") {
-		logLady.Trace("CircleCI usage")
-		return getUserAgent("circleci", callTree)
+		a.logLady.Trace("CircleCI usage")
+		return a.getUserAgent("circleci", callTree)
 	}
 	if checkForCISystem("BITBUCKET_BUILD_NUMBER") {
-		logLady.Trace("BitBucket usage")
-		return getUserAgent("bitbucket", callTree)
+		a.logLady.Trace("BitBucket usage")
+		return a.getUserAgent("bitbucket", callTree)
 	}
 	if checkForCISystem("TRAVIS") {
-		logLady.Trace("TravisCI usage")
-		return getUserAgent("travis-ci", callTree)
+		a.logLady.Trace("TravisCI usage")
+		return a.getUserAgent("travis-ci", callTree)
 	}
 	if checkForCISystem("GITLAB_CI") {
-		logLady.Trace("GitLab usage")
-		return getUserAgent("gitlab-ci", callTree)
+		a.logLady.Trace("GitLab usage")
+		return a.getUserAgent("gitlab-ci", callTree)
 	}
 	if checkIfJenkins() {
-		logLady.Trace("Jenkins usage")
-		return getUserAgent("jenkins", callTree)
+		a.logLady.Trace("Jenkins usage")
+		return a.getUserAgent("jenkins", callTree)
 	}
 	if checkIfGitHub() {
 		id := getGitHubActionID()
-		logLady.WithField("gh_action_id", id).Trace("GitHub Actions usage")
-		return getUserAgent(fmt.Sprintf("github-action %s", id), callTree)
+		a.logLady.WithField("gh_action_id", id).Trace("GitHub Actions usage")
+		return a.getUserAgent(fmt.Sprintf("github-action %s", id), callTree)
 	}
 
-	logLady.Trace("Returning User Agent")
-	return getUserAgent("ci usage", callTree)
+	a.logLady.Trace("Returning User Agent")
+	return a.getUserAgent("ci usage", callTree)
 }
 
-func getUserAgent(agent string, callTree string) (userAgent string) {
-	logLady.Trace("Obtaining parsed User Agent string")
-	userAgent = fmt.Sprintf("%s (%s; %s %s; %s)", getUserAgentBaseAndVersion(), agent, GOOS, GOARCH, callTree)
-	logLady.WithField("user_agent_parsed", userAgent).Trace("Obtained parsed User Agent string")
+func (a *Agent) getUserAgent(agent string, callTree string) (userAgent string) {
+	a.logLady.Trace("Obtaining parsed User Agent string")
+	userAgent = fmt.Sprintf("%s (%s; %s %s; %s)", a.getUserAgentBaseAndVersion(), agent, a.Options.GoOS, a.Options.GoArch, callTree)
+	a.logLady.WithField("user_agent_parsed", userAgent).Trace("Obtained parsed User Agent string")
 	return
 }
 

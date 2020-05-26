@@ -45,7 +45,7 @@ err = ossi.NoCacheNoProblems()
 logger, _ := logrus.NewNullLogger()
 
 // Obtains a pointer to a Server struct
-iq := iq.New(logger, types.Options{Username: "username", Token: "token"})
+iq := iq.New(logger, iq.Options{Username: "username", Token: "token"})
 
 // Audits a slice of purls, given a public IQ Server application ID, and returns results or an error
 results, err := iq.AuditPackages([]string{"a", "list", "of", "purls"}, "public-application-id")
@@ -62,4 +62,20 @@ sbom := cyclonedx.Default(logger)
 
 // Obtains a SBOM from []types.Coordinates
 results := sbom.FromCoordinates([]types.Coordinates{})
+```
+
+#### User Agent
+
+```golang
+// Setup fake logger, use a real one when you consume this package
+logger, _ := logrus.NewNullLogger()
+
+// Obtains a pointer to a Agent struct, useful in testing or if you need to override ClientTool or Version
+ua := useragent.New(logger, useragent.Options{ClientTool: "your-client-tool", Version: "1.0.0", GoOS: runtime.GOOS, GoArch: runtime.GOARCH})
+
+// Can be used to get a Agent struct populated with defaults
+ua = useragent.Default(logger)
+
+// Obtains a properly formatted user-agent string for communicating with OSS Index or Nexus IQ Server
+useragent := ua.GetUserAgent()
 ```

@@ -41,6 +41,7 @@ const MaxCoords = 128
 type Server struct {
 	Options types.Options
 	logLady *logrus.Logger
+	agent   *useragent.Agent
 	dbCache *cache.Cache
 }
 
@@ -51,9 +52,11 @@ func (o *Server) NoCacheNoProblems() error {
 
 // New is intended to be the way to obtain a ossindex instance, where you have control of the options
 func New(logger *logrus.Logger, options types.Options) *Server {
+	ua := useragent.New(logger, useragent.Options{ClientTool: options.Tool, Version: options.Version})
 	return &Server{
 		logLady: logger,
 		Options: options,
+		agent:   ua,
 		dbCache: cache.New(logger, cache.Options{
 			DBName: options.DBCacheName,
 			TTL:    options.TTL,
@@ -165,9 +168,9 @@ func (o *Server) setupRequest(jsonStr []byte) (req *http.Request, err error) {
 		return nil, err
 	}
 	if o.Options.Version != "" {
-		req.Header.Set("User-Agent", useragent.GetUserAgent(o.logLady, o.Options.Version))
+		req.Header.Set("User-Agent", o.agent.GetUserAgent())
 	} else {
-		req.Header.Set("User-Agent", useragent.GetUserAgent(o.logLady, "development"))
+		req.Header.Set("User-Agent", o.agent.GetUserAgent())
 	}
 
 	req.Header.Set("Content-Type", "application/json")
