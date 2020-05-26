@@ -41,6 +41,7 @@ func setupOptions() (options types.Options) {
 	options.Username = "testuser"
 	options.Token = "test"
 	options.DBCacheName = "nancy-test"
+	options.TTL = time.Now().Local().Add(time.Hour * 12)
 	return
 }
 

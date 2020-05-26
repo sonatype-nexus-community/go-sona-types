@@ -60,15 +60,12 @@ func New(logger *logrus.Logger, options types.Options) *OSSIndex {
 }
 
 // Default is intended to be a way to obtain a ossindex instance, with rational defaults set
-func Default(logger *logrus.Loggers) *OSSIndex {
-	return New(logger, &OSSIndex{
-		logLady: logger,
-		Options: options,
-		dbCache: cache.New(logger, cache.Options{
-			DBName: "nancy-cache",
-			TTL:    time.Now().Local().Add(time.Hour * 12),
-		}),
-	)
+func Default(logger *logrus.Logger) *OSSIndex {
+	return New(logger,
+		types.Options{
+			DBCacheName: "nancy-cache",
+			TTL:         time.Now().Local().Add(time.Hour * 12),
+		})
 }
 
 // AuditPackages will given a slice of Package URLs run an OSS Index audit, and return the result

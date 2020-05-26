@@ -95,6 +95,8 @@ type Options struct {
 	Version       string
 	OSSIndexUser  string
 	OSSIndexToken string
+	DBCacheName   string
+	TTL           time.Time
 	PollInterval  time.Duration
 }
 
@@ -127,7 +129,12 @@ func (i *IQServer) AuditPackages(purls []string, applicationID string) (StatusUR
 		return statusURLResp, err
 	}
 
-	ossIndexOptions := types.Options{Username: i.Options.OSSIndexUser, Token: i.Options.OSSIndexToken}
+	ossIndexOptions := types.Options{
+		Username:    i.Options.OSSIndexUser,
+		Token:       i.Options.OSSIndexToken,
+		DBCacheName: i.Options.DBCacheName,
+		TTL:         i.Options.TTL,
+	}
 
 	ossi := ossindex.New(i.logLady, ossIndexOptions)
 
@@ -139,7 +146,9 @@ func (i *IQServer) AuditPackages(purls []string, applicationID string) (StatusUR
 		}
 	}
 
-	sbom := cyclonedx.ProcessPurlsIntoSBOM(resultsFromOssIndex, i.logLady)
+	dx := cyclonedx.Default(i.logLady)
+
+	sbom := dx.FromCoordinates(resultsFromOssIndex)
 	i.logLady.WithField("sbom", sbom).Debug("Obtained cyclonedx SBOM")
 
 	i.logLady.WithFields(logrus.Fields{

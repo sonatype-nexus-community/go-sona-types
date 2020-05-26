@@ -20,6 +20,7 @@ package iq
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/jarcoal/httpmock"
 	"github.com/sirupsen/logrus/hooks/test"
@@ -62,6 +63,8 @@ func setupIqOptions() (options Options) {
 	options.Stage = "develop"
 	options.User = "admin"
 	options.Token = "admin123"
+	options.DBCacheName = "nancy-iq-test"
+	options.TTL = time.Now().Local().Add(time.Hour * 12)
 	return
 }
 
