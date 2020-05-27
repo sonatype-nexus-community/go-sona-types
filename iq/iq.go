@@ -157,6 +157,7 @@ func AuditPackages(purls []string, applicationID string, config Configuration, l
 	statusURLResp = StatusURLResult{}
 
 	finishedChan := make(chan resultError)
+	defer close(finishedChan)
 
 	go func() resultError {
 		for {
