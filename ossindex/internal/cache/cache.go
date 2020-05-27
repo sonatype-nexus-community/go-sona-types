@@ -58,7 +58,7 @@ type DBValue struct {
 
 // New is intended to be the way to obtain a cache instance
 func New(logger *logrus.Logger, options Options) *Cache {
-	if options.DBDirName == "" {
+	if len(strings.TrimSpace(options.DBDirName)) == 0 {
 		options.DBDirName = dbDirName
 	}
 	return &Cache{logLady: logger, Options: options}
