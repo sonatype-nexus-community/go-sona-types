@@ -83,26 +83,46 @@ func (i *ServerError) Error() string {
 // Server is a struct that holds the IQ Server options, logger and other properties related to
 // communicating with Nexus IQ Server
 type Server struct {
+	// Options is the accepted Options for communicating with IQ Server, and OSS Index (see Options struct)
+	// for more information
 	Options Options
+	// logLady is the internal name of the logger, and accepts a pointer to a *logrus.Logger
 	logLady *logrus.Logger
-	agent   *useragent.Agent
-	tries   int
+	// agent is a pointer to a *useragent.Agent struct, used for setting the User-Agent when communicating
+	// with IQ Server and OSS Index
+	agent *useragent.Agent
+	// tries is an internal variable for keeping track of how many times IQ Server has been polled
+	tries int
 }
 
+// Options is a struct for setting options on the Server struct
 type Options struct {
-	User          string
-	Token         string
-	Stage         string
-	Application   string
-	Server        string
-	MaxRetries    int
-	Tool          string
-	Version       string
-	OSSIndexUser  string
+	// User is the IQ Server user you intend to authenticate with
+	User string
+	// Token is the IQ Server token you intend to authenticate with
+	Token string
+	// Stage is the IQ Server stage you intend to generate a report with (ex: develop, build, release, etc...)
+	Stage string
+	// Application is the IQ Server public application ID you intend to run the audit with
+	Application string
+	// Server is the IQ Server base URL (ex: http://localhost:8070)
+	Server string
+	// MaxRetries is the maximum amount of times to long poll IQ Server for results
+	MaxRetries int
+	// Tool is the client-id you want to have set in your User-Agent string (ex: nancy-client)
+	Tool string
+	// Version is the version of the tool you are writing, that you want set in your User-Agent string (ex: 1.0.0)
+	Version string
+	// User is the OSS Index user you intend to authenticate with
+	OSSIndexUser string
+	// Token is the OSS Index token you intend to authenticate with
 	OSSIndexToken string
-	DBCacheName   string
-	TTL           time.Time
-	PollInterval  time.Duration
+	// DBCacheName is the name of the OSS Index cache you'd like to use (ex: nancy-cache)
+	DBCacheName string
+	// TTL is the maximum time you want items to live in the DB Cache before being evicted (defaults to 12 hours)
+	TTL time.Time
+	// PollInterval is the time you want to wait between polls of IQ Server (defaults to 1 second)
+	PollInterval time.Duration
 }
 
 // New is intended to be the way to obtain a iq instance, where you control the options
@@ -110,6 +130,11 @@ func New(logger *logrus.Logger, options Options) *Server {
 	if options.PollInterval == 0 {
 		logger.Trace("Setting Poll Interval to 1 second since it wasn't set explicitly")
 		options.PollInterval = 1 * time.Second
+	}
+
+	if options.TTL.IsZero() {
+		logger.Trace("Setting TTL to 12 hours since it wasn't set explicitly")
+		options.TTL = time.Now().Local().Add(time.Hour * 12)
 	}
 
 	ua := useragent.New(logger, useragent.Options{ClientTool: options.Tool, Version: options.Version})
