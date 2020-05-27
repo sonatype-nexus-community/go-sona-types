@@ -180,6 +180,7 @@ func (i *Server) AuditPackages(purls []string, applicationID string) (StatusURLR
 	statusURLResp = StatusURLResult{}
 
 	finishedChan := make(chan resultError)
+	defer close(finishedChan)
 
 	go func() resultError {
 		for {
