@@ -50,7 +50,7 @@ func (o *Server) NoCacheNoProblems() error {
 	return o.dbCache.RemoveCache()
 }
 
-// New is intended to be the way to obtain a ossindex instance, where you have control of the options
+// New is intended to be the way to obtain a Server instance, where you have control of the options
 func New(logger *logrus.Logger, options types.Options) *Server {
 	ua := useragent.New(logger, useragent.Options{ClientTool: options.Tool, Version: options.Version})
 	return &Server{
@@ -64,7 +64,7 @@ func New(logger *logrus.Logger, options types.Options) *Server {
 	}
 }
 
-// Default is intended to be a way to obtain a ossindex instance, with rational defaults set
+// Default is intended to be a way to obtain a Server instance, with rational defaults set
 func Default(logger *logrus.Logger) *Server {
 	return New(logger,
 		types.Options{
