@@ -17,6 +17,7 @@ package types
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -28,11 +29,15 @@ const (
 	IQServerConfigFileName = ".iq-server-config"
 )
 
-type Configuration struct {
-	Version    string
-	CleanCache bool
-	Username   string
-	Token      string
+type Options struct {
+	Version     string
+	CleanCache  bool
+	Username    string
+	Token       string
+	Tool        string
+	OSSIndexURL string
+	DBCacheName string
+	TTL         time.Time
 }
 
 type Coordinate struct {

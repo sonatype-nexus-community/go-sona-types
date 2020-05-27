@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-// Definitions and functions for processing the OSS Index Feed
+// Package ossindex is definitions and functions for processing the OSS Index Feed
 package ossindex
 
 import (
@@ -36,40 +36,50 @@ const defaultOssIndexURL = "https://ossindex.sonatype.org/api/v3/component-repor
 // MaxCoords is the maximum amount of coords to query OSS Index with at one time
 const MaxCoords = 128
 
-var (
-	ossIndexURL string
-	logLady     *logrus.Logger
-)
+// Server is a struct that holds the OSS Index options, logger and other properties related to
+// communicating with OSS Index
+type Server struct {
+	Options types.Options
+	logLady *logrus.Logger
+	agent   *useragent.Agent
+	dbCache *cache.Cache
+}
 
-var dbCache *cache.Cache
+// NoCacheNoProblems deletes the local database directory.
+func (o *Server) NoCacheNoProblems() error {
+	return o.dbCache.RemoveCache()
+}
 
-func init() {
-	dbCache = &cache.Cache{
-		DBName: "nancy-cache",
-		TTL:    time.Now().Local().Add(time.Hour * 12),
+// New is intended to be the way to obtain a Server instance, where you have control of the options
+func New(logger *logrus.Logger, options types.Options) *Server {
+	ua := useragent.New(logger, useragent.Options{ClientTool: options.Tool, Version: options.Version})
+	return &Server{
+		logLady: logger,
+		Options: options,
+		agent:   ua,
+		dbCache: cache.New(logger, cache.Options{
+			DBName: options.DBCacheName,
+			TTL:    options.TTL,
+		}),
 	}
 }
 
-func getOssIndexURL() string {
-	if ossIndexURL == "" {
-		ossIndexURL = defaultOssIndexURL
-	}
-	return ossIndexURL
+// Default is intended to be a way to obtain a Server instance, with rational defaults set
+func Default(logger *logrus.Logger) *Server {
+	return New(logger,
+		types.Options{
+			DBCacheName: "nancy-cache",
+			TTL:         time.Now().Local().Add(time.Hour * 12),
+		})
 }
 
-// RemoveCacheDirectory deletes the local database directory.
-func RemoveCacheDirectory(logger *logrus.Logger) error {
-	return dbCache.RemoveCache(logger)
+// AuditPackages will given a slice of Package URLs run an OSS Index audit, and return the result
+func (o *Server) AuditPackages(purls []string) ([]types.Coordinate, error) {
+	return o.doAuditPackages(purls)
 }
 
-// AuditPackagesWithOSSIndex will given a list of Package URLs, run an OSS Index audit, and takes OSS Index configuration
-func AuditPackagesWithOSSIndex(purls []string, config types.Configuration, logger *logrus.Logger) ([]types.Coordinate, error) {
-	logLady = logger
-	return doAuditPackages(purls, &config)
-}
-
-func doAuditPackages(purls []string, config *types.Configuration) ([]types.Coordinate, error) {
-	newPurls, results, err := dbCache.GetCacheValues(purls, logLady)
+func (o *Server) doAuditPackages(purls []string) ([]types.Coordinate, error) {
+	newPurls, results, err := o.dbCache.GetCacheValues(purls)
 	if err != nil {
 		return nil, &types.OSSIndexError{
 			Message: "Error initializing cache",
@@ -83,18 +93,18 @@ func doAuditPackages(purls []string, config *types.Configuration) ([]types.Coord
 		if len(chunk) > 0 {
 			var request types.AuditRequest
 			request.Coordinates = chunk
-			logLady.WithField("request", request).Info("Prepping request to OSS Index")
+			o.logLady.WithField("request", request).Info("Prepping request to OSS Index")
 			var jsonStr, _ = json.Marshal(request)
 
-			coordinates, err := doRequestToOSSIndex(jsonStr, config)
+			coordinates, err := o.doRequestToOSSIndex(jsonStr)
 			if err != nil {
 				return nil, err
 			}
 
 			results = append(results, coordinates...)
 
-			logLady.WithField("coordinates", coordinates).Info("Coordinates unmarshalled from OSS Index")
-			err = dbCache.Insert(coordinates, logLady)
+			o.logLady.WithField("coordinates", coordinates).Info("Coordinates unmarshalled from OSS Index")
+			err = o.dbCache.Insert(coordinates)
 			if err != nil {
 				return nil, err
 			}
@@ -103,8 +113,8 @@ func doAuditPackages(purls []string, config *types.Configuration) ([]types.Coord
 	return results, nil
 }
 
-func doRequestToOSSIndex(jsonStr []byte, config *types.Configuration) (coordinates []types.Coordinate, err error) {
-	req, err := setupRequest(jsonStr, config)
+func (o *Server) doRequestToOSSIndex(jsonStr []byte) (coordinates []types.Coordinate, err error) {
+	req, err := o.setupRequest(jsonStr)
 	if err != nil {
 		return
 	}
@@ -116,12 +126,12 @@ func doRequestToOSSIndex(jsonStr []byte, config *types.Configuration) (coordinat
 	}
 
 	if resp.StatusCode == http.StatusTooManyRequests {
-		logLady.WithField("resp_status_code", resp.Status).Error("Error accessing OSS Index due to Rate Limiting")
+		o.logLady.WithField("resp_status_code", resp.Status).Error("Error accessing OSS Index due to Rate Limiting")
 		return nil, &types.OSSIndexRateLimitError{}
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		logLady.WithField("resp_status_code", resp.Status).Error("Error accessing OSS Index")
+		o.logLady.WithField("resp_status_code", resp.Status).Error("Error accessing OSS Index")
 		return nil, &types.OSSIndexError{
 			Message: fmt.Sprintf("[%s] error accessing OSS Index", resp.Status),
 		}
@@ -129,44 +139,44 @@ func doRequestToOSSIndex(jsonStr []byte, config *types.Configuration) (coordinat
 
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			logLady.WithField("error", err).Error("Error closing response body")
+			o.logLady.WithField("error", err).Error("Error closing response body")
 		}
 	}()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		logLady.WithField("error", err).Error("Error accessing OSS Index")
+		o.logLady.WithField("error", err).Error("Error accessing OSS Index")
 		return
 	}
 
 	// Process results
 	if err = json.Unmarshal(body, &coordinates); err != nil {
-		logLady.WithField("error", err).Error("Error unmarshalling response from OSS Index")
+		o.logLady.WithField("error", err).Error("Error unmarshalling response from OSS Index")
 		return
 	}
 	return
 }
 
-func setupRequest(jsonStr []byte, config *types.Configuration) (req *http.Request, err error) {
-	logLady.WithField("json_string", string(jsonStr)).Debug("Setting up new POST request to OSS Index")
+func (o *Server) setupRequest(jsonStr []byte) (req *http.Request, err error) {
+	o.logLady.WithField("json_string", string(jsonStr)).Debug("Setting up new POST request to OSS Index")
 	req, err = http.NewRequest(
 		"POST",
-		getOssIndexURL(),
+		o.getOssIndexURL(),
 		bytes.NewBuffer(jsonStr),
 	)
 	if err != nil {
 		return nil, err
 	}
-	if config.Version != "" {
-		req.Header.Set("User-Agent", useragent.GetUserAgent(logLady, config.Version))
+	if o.Options.Version != "" {
+		req.Header.Set("User-Agent", o.agent.GetUserAgent())
 	} else {
-		req.Header.Set("User-Agent", useragent.GetUserAgent(logLady, "development"))
+		req.Header.Set("User-Agent", o.agent.GetUserAgent())
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	if config != nil && config.Username != "" && config.Token != "" {
-		logLady.Info("Set OSS Index Basic Auth")
-		req.SetBasicAuth(config.Username, config.Token)
+	if o.Options.Username != "" && o.Options.Token != "" {
+		o.logLady.Info("Set OSS Index Basic Auth")
+		req.SetBasicAuth(o.Options.Username, o.Options.Token)
 	}
 
 	return req, nil
@@ -186,4 +196,11 @@ func chunk(purls []string, chunkSize int) [][]string {
 	}
 
 	return divided
+}
+
+func (o *Server) getOssIndexURL() string {
+	if o.Options.OSSIndexURL == "" {
+		o.Options.OSSIndexURL = defaultOssIndexURL
+	}
+	return o.Options.OSSIndexURL
 }

@@ -21,26 +21,16 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 )
-
-var logger *logrus.Logger
-var testVersion string
-
-func init() {
-	logger, _ = test.NewNullLogger()
-	testVersion = "development"
-}
 
 func TestGetUserAgentNonCI(t *testing.T) {
 	clearCircleCIVariables()
 	expected := "nancy-client/development (non ci usage; linux amd64; )"
 
-	GOOS = "linux"
-	GOARCH = "amd64"
+	ua := setupUserAgent(t)
 
-	agent := GetUserAgent(logger, testVersion)
+	agent := ua.GetUserAgent()
 
 	if agent != expected {
 		t.Errorf("User Agent not retrieved successfully, got %s, expected %s", agent, expected)
@@ -52,10 +42,10 @@ func TestGetUserAgentCircleCI(t *testing.T) {
 
 	os.Setenv("CI", "true")
 	os.Setenv("CIRCLECI", "true")
-	GOOS = "linux"
-	GOARCH = "amd64"
 
-	agent := GetUserAgent(logger, testVersion)
+	ua := setupUserAgent(t)
+
+	agent := ua.GetUserAgent()
 
 	if agent != expected {
 		t.Errorf("User Agent not retrieved successfully, got %s, expected %s", agent, expected)
@@ -67,10 +57,10 @@ func TestGetUserAgentJenkins(t *testing.T) {
 	expected := "nancy-client/development (jenkins; linux amd64; )"
 
 	os.Setenv("JENKINS_HOME", "/a/place/under/the/sun")
-	GOOS = "linux"
-	GOARCH = "amd64"
 
-	agent := GetUserAgent(logger, testVersion)
+	ua := setupUserAgent(t)
+
+	agent := ua.GetUserAgent()
 
 	os.Unsetenv("JENKINS_HOME")
 
@@ -85,10 +75,10 @@ func TestGetUserAgentTravisCI(t *testing.T) {
 
 	os.Setenv("CI", "true")
 	os.Setenv("TRAVIS", "true")
-	GOOS = "linux"
-	GOARCH = "amd64"
 
-	agent := GetUserAgent(logger, testVersion)
+	ua := setupUserAgent(t)
+
+	agent := ua.GetUserAgent()
 
 	os.Unsetenv("CI")
 	os.Unsetenv("TRAVIS")
@@ -104,10 +94,10 @@ func TestGetUserAgentGitLabCI(t *testing.T) {
 
 	os.Setenv("CI", "true")
 	os.Setenv("GITLAB_CI", "true")
-	GOOS = "linux"
-	GOARCH = "amd64"
 
-	agent := GetUserAgent(logger, testVersion)
+	ua := setupUserAgent(t)
+
+	agent := ua.GetUserAgent()
 
 	os.Unsetenv("CI")
 	os.Unsetenv("GITLAB_CI")
@@ -123,10 +113,10 @@ func TestGetUserAgentGitHubAction(t *testing.T) {
 
 	os.Setenv("GITHUB_ACTIONS", "true")
 	os.Setenv("GITHUB_ACTION", "20")
-	GOOS = "linux"
-	GOARCH = "amd64"
 
-	agent := GetUserAgent(logger, testVersion)
+	ua := setupUserAgent(t)
+
+	agent := ua.GetUserAgent()
 
 	os.Unsetenv("GITHUB_ACTIONS")
 	os.Unsetenv("GITHUB_ACTION")
@@ -142,10 +132,10 @@ func TestGetUserAgentBitBucket(t *testing.T) {
 
 	os.Setenv("CI", "true")
 	os.Setenv("BITBUCKET_BUILD_NUMBER", "20")
-	GOOS = "linux"
-	GOARCH = "amd64"
 
-	agent := GetUserAgent(logger, testVersion)
+	ua := setupUserAgent(t)
+
+	agent := ua.GetUserAgent()
 
 	os.Unsetenv("CI")
 	os.Unsetenv("BITBUCKET_BUILD_NUMBER")
@@ -160,10 +150,10 @@ func TestGetUserAgentScCallerInfo(t *testing.T) {
 	expected := "nancy-client/development (non ci usage; linux amd64; bitbucket-nancy-pipe-0.1.9)"
 
 	os.Setenv("SC_CALLER_INFO", "bitbucket-nancy-pipe-0.1.9")
-	GOOS = "linux"
-	GOARCH = "amd64"
 
-	agent := GetUserAgent(logger, testVersion)
+	ua := setupUserAgent(t)
+
+	agent := ua.GetUserAgent()
 
 	os.Unsetenv("SC_CALLER_INFO")
 
@@ -177,10 +167,9 @@ func TestGetUserAgentCINoClueWhatSystem(t *testing.T) {
 	expected := "nancy-client/development (ci usage; linux amd64; )"
 
 	os.Setenv("CI", "true")
-	GOOS = "linux"
-	GOARCH = "amd64"
+	ua := setupUserAgent(t)
 
-	agent := GetUserAgent(logger, testVersion)
+	agent := ua.GetUserAgent()
 
 	os.Unsetenv("CI")
 
@@ -192,4 +181,15 @@ func TestGetUserAgentCINoClueWhatSystem(t *testing.T) {
 func clearCircleCIVariables() {
 	os.Unsetenv("CI")
 	os.Unsetenv("CIRCLECI")
+}
+
+func setupUserAgent(t *testing.T) *Agent {
+	logger, _ := test.NewNullLogger()
+	options := Options{
+		ClientTool: "nancy-client",
+		Version:    "development",
+		GoOS:       "linux",
+		GoArch:     "amd64",
+	}
+	return New(logger, options)
 }

@@ -118,36 +118,63 @@ func (c *CycloneDXError) Error() string {
 	return fmt.Sprintf("An error occurred: %s", c.Message)
 }
 
-const cycloneDXBomXmlns1_1 = "http://cyclonedx.org/schema/bom/1.1"
-const cycloneDXBomXmlns1_0V = "http://cyclonedx.org/schema/ext/vulnerability/1.0"
+const (
+	cycloneDXBomXmlns1_1  = "http://cyclonedx.org/schema/bom/1.1"
+	cycloneDXBomXmlns1_0V = "http://cyclonedx.org/schema/ext/vulnerability/1.0"
+	version               = "1"
+)
 
-const version = "1"
-
-var logLady *logrus.Logger
-
-// ProcessPurlsIntoSBOM will take a slice of packageurl.PackageURL and convert them
-// into a minimal 1.1 CycloneDX sbom
-func ProcessPurlsIntoSBOM(results []types.Coordinate, logger *logrus.Logger) string {
-	logLady = logger
-	return processPurlsIntoSBOMSchema1_1(results)
+// CycloneDX is a struct for consumption of the cyclonedx functionality
+type CycloneDX struct {
+	Options Options
+	logLady *logrus.Logger
 }
 
-// SBOMFromPackageURLs will take a slice of packageurl.PackageURL and convert them
-// into a minimal 1.1 CycloneDX sbom
-func SBOMFromPackageURLs(results []packageurl.PackageURL, logger *logrus.Logger) string {
-	logLady = logger
-	return processPackageURLsIntoSBOMSchema1_1(results)
+// Options is a struct for setting options on the cyclonedx struct
+type Options struct {
+	CycloneDXBomXMLNS  string
+	CycloneDXBomXMLNSV string
+	Version            string
 }
 
-// SBOMFromSHA1 will take a slice of Sha1SBOM and convert them
-// into a minimal 1.1 CycloneDX sbom
-func SBOMFromSHA1(results []Sha1SBOM, logger *logrus.Logger) string {
-	logLady = logger
-	return createMinimalSha1Sbom(results)
+// New is intended to be the way to obtain a cyclonedx instance, where you control the options
+func New(logger *logrus.Logger, options Options) *CycloneDX {
+	return &CycloneDX{logLady: logger, Options: options}
 }
 
-func createMinimalSha1Sbom(results []Sha1SBOM) string {
-	sbom := createSbomDocument()
+// Default is intended to be the way to obtain a cyclonedx instance set to create a cyclonedx 1.1 SBOM,
+// with 1.0 Vulnerability namespace
+func Default(logger *logrus.Logger) *CycloneDX {
+	return &CycloneDX{
+		logLady: logger,
+		Options: Options{
+			CycloneDXBomXMLNS:  cycloneDXBomXmlns1_1,
+			CycloneDXBomXMLNSV: cycloneDXBomXmlns1_0V,
+			Version:            version,
+		},
+	}
+}
+
+// FromCoordinates will take []types.Coordinate and convert them
+// into a minimal 1.1 CycloneDX sbom
+func (c *CycloneDX) FromCoordinates(results []types.Coordinate) string {
+	return c.processPurlsIntoSBOMSchema1_1(results)
+}
+
+// FromPackageURLs will take []packageurl.PackageURL and convert them
+// into a minimal 1.1 CycloneDX sbom
+func (c *CycloneDX) FromPackageURLs(results []packageurl.PackageURL) string {
+	return c.processPackageURLsIntoSBOMSchema1_1(results)
+}
+
+// FromSHA1s will take []Sha1SBOM and convert them
+// into a minimal 1.1 CycloneDX sbom
+func (c *CycloneDX) FromSHA1s(results []Sha1SBOM) string {
+	return c.createMinimalSha1Sbom(results)
+}
+
+func (c *CycloneDX) createMinimalSha1Sbom(results []Sha1SBOM) string {
+	sbom := c.createSbomDocument()
 	for _, v := range results {
 		component := Component{
 			Type:    "library",
@@ -165,11 +192,11 @@ func createMinimalSha1Sbom(results []Sha1SBOM) string {
 		sbom.Components.Component = append(sbom.Components.Component, component)
 	}
 
-	return processAndReturnSbom(sbom)
+	return c.processAndReturnSbom(sbom)
 }
 
-func processPackageURLsIntoSBOMSchema1_1(results []packageurl.PackageURL) string {
-	sbom := createSbomDocument()
+func (c *CycloneDX) processPackageURLsIntoSBOMSchema1_1(results []packageurl.PackageURL) string {
+	sbom := c.createSbomDocument()
 	for _, v := range results {
 		component := Component{
 			Type:    "library",
@@ -182,11 +209,11 @@ func processPackageURLsIntoSBOMSchema1_1(results []packageurl.PackageURL) string
 		sbom.Components.Component = append(sbom.Components.Component, component)
 	}
 
-	return processAndReturnSbom(sbom)
+	return c.processAndReturnSbom(sbom)
 }
 
-func processPurlsIntoSBOMSchema1_1(results []types.Coordinate) string {
-	sbom := createSbomDocument()
+func (c *CycloneDX) processPurlsIntoSBOMSchema1_1(results []types.Coordinate) string {
+	sbom := c.createSbomDocument()
 	for _, v := range results {
 		purl, err := packageurl.FromString(v.Coordinates)
 		if err != nil {
@@ -229,22 +256,21 @@ func processPurlsIntoSBOMSchema1_1(results []types.Coordinate) string {
 		sbom.Components.Component = append(sbom.Components.Component, component)
 	}
 
-	return processAndReturnSbom(sbom)
+	return c.processAndReturnSbom(sbom)
 }
 
-func createSbomDocument() *Sbom {
-	sbom := Sbom{}
-	sbom.Xmlns = cycloneDXBomXmlns1_1
-	sbom.XMLNSV = cycloneDXBomXmlns1_0V
-	sbom.Version = version
-
-	return &sbom
+func (c *CycloneDX) createSbomDocument() *Sbom {
+	return &Sbom{
+		Xmlns:   c.Options.CycloneDXBomXMLNS,
+		XMLNSV:  c.Options.CycloneDXBomXMLNSV,
+		Version: c.Options.Version,
+	}
 }
 
-func processAndReturnSbom(sbom *Sbom) string {
+func (c *CycloneDX) processAndReturnSbom(sbom *Sbom) string {
 	output, err := xml.MarshalIndent(sbom, " ", "     ")
 	if err != nil {
-		logLady.Error(err)
+		c.logLady.Error(err)
 	}
 
 	output = []byte(xml.Header + string(output))

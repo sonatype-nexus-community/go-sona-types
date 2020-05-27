@@ -23,24 +23,19 @@ import (
 	"github.com/beevik/etree"
 	"github.com/package-url/packageurl-go"
 	"github.com/shopspring/decimal"
-	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex/types"
 	"gopkg.in/go-playground/assert.v1"
 )
-
-var logger *logrus.Logger
-
-func init() {
-	logger, _ = test.NewNullLogger()
-}
 
 func TestCreateSBOMFromPackageURLs(t *testing.T) {
 	var results []packageurl.PackageURL
 	uno, _ := packageurl.FromString("pkg:golang/github.com/test/test@1.0.0")
 	results = append(results, uno)
 
-	result := SBOMFromPackageURLs(results, logger)
+	dx := setupCycloneDX(t)
+
+	result := dx.FromPackageURLs(results)
 
 	doc := etree.NewDocument()
 
@@ -74,7 +69,9 @@ func TestCreateSBOMFromSHA1s(t *testing.T) {
 	uno := Sha1SBOM{Location: "/path/on/disk", Sha1: "c2843e01d9a2"}
 	results = append(results, uno)
 
-	result := SBOMFromSHA1(results, logger)
+	dx := setupCycloneDX(t)
+
+	result := dx.FromSHA1s(results)
 
 	doc := etree.NewDocument()
 
@@ -137,7 +134,10 @@ func TestProcessPurlsIntoSBOM(t *testing.T) {
 		Reference:       "https://ossindex.sonatype.org/component/pkg:golang/github.com/go-yaml/yaml@2.2.2",
 		Vulnerabilities: []types.Vulnerability{},
 	})
-	result := ProcessPurlsIntoSBOM(results, logger)
+
+	dx := setupCycloneDX(t)
+
+	result := dx.FromCoordinates(results)
 
 	doc := etree.NewDocument()
 
@@ -223,7 +223,10 @@ func assertBaseXMLValid(doc *etree.Element, t *testing.T) {
 
 func TestProcess1_1NoError(t *testing.T) {
 	var results []types.Coordinate
-	sbom := processPurlsIntoSBOMSchema1_1(results)
+
+	dx := setupCycloneDX(t)
+
+	sbom := dx.processPurlsIntoSBOMSchema1_1(results)
 	assert.Equal(t, `<?xml version="1.0" encoding="UTF-8"?>
  <bom xmlns="http://cyclonedx.org/schema/bom/1.1" xmlns:v="http://cyclonedx.org/schema/ext/vulnerability/1.0" version="1">
       <components></components>
@@ -237,15 +240,25 @@ func TestProcess1_1WithCoordinate(t *testing.T) {
 		},
 	}
 
-	sbom := processPurlsIntoSBOMSchema1_1(results)
+	dx := setupCycloneDX(t)
+
+	sbom := dx.processPurlsIntoSBOMSchema1_1(results)
 	assert.Equal(t, "", sbom)
 }
 
 func TestProcessWithError(t *testing.T) {
 	var results []types.Coordinate
-	sbom := ProcessPurlsIntoSBOM(results, logger)
+
+	dx := setupCycloneDX(t)
+
+	sbom := dx.FromCoordinates(results)
 	assert.Equal(t, `<?xml version="1.0" encoding="UTF-8"?>
  <bom xmlns="http://cyclonedx.org/schema/bom/1.1" xmlns:v="http://cyclonedx.org/schema/ext/vulnerability/1.0" version="1">
       <components></components>
  </bom>`, sbom)
+}
+
+func setupCycloneDX(t *testing.T) *CycloneDX {
+	logger, _ := test.NewNullLogger()
+	return Default(logger)
 }
