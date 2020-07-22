@@ -36,6 +36,12 @@ const defaultOssIndexURL = "https://ossindex.sonatype.org/api/v3/component-repor
 // MaxCoords is the maximum amount of coords to query OSS Index with at one time
 const MaxCoords = 128
 
+// IServer is an interface for mocking the OSS Index Server struct
+type IServer interface {
+	NoCacheNoProblems() error
+	AuditPackages(p []string) ([]types.Coordinate, error)
+}
+
 // Server is a struct that holds the OSS Index options, logger and other properties related to
 // communicating with OSS Index
 type Server struct {
