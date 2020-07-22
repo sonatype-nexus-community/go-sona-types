@@ -262,3 +262,6 @@ func setupCycloneDX(t *testing.T) *CycloneDX {
 	logger, _ := test.NewNullLogger()
 	return Default(logger)
 }
+
+// use compiler to ensure ICycloneDX interface is implemented by CycloneDX
+var _ ICycloneDX = (*CycloneDX)(nil)

@@ -257,3 +257,6 @@ func setupJSON(t *testing.T) (coordJSON []byte, err error) {
 
 	return
 }
+
+// use compiler to ensure IServer interface is implemented by Server
+var _ IServer = (*Server)(nil)
