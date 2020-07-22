@@ -25,6 +25,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// IAgent is an interface for mocking the Agent struct
+type IAgent interface {
+	GetUserAgent() string
+}
+
 // Agent is a struct that holds the User-Agent options, logger and other properties related to
 // obtaining a properly formatted user-agent
 type Agent struct {

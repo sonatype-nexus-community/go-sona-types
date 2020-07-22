@@ -124,6 +124,13 @@ const (
 	version               = "1"
 )
 
+// ICycloneDX is an interface for mocking the cyclonedx functionality
+type ICycloneDX interface {
+	FromCoordinates(r []types.Coordinate) string
+	FromPackageURLs(r []packageurl.PackageURL) string
+	FromSHA1s(r []Sha1SBOM) string
+}
+
 // CycloneDX is a struct for consumption of the cyclonedx functionality
 type CycloneDX struct {
 	Options Options

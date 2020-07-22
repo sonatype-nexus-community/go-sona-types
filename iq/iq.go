@@ -80,6 +80,11 @@ func (i *ServerError) Error() string {
 	return fmt.Sprintf("An error occurred: %s", i.Message)
 }
 
+// IServer is an interface that can be used for mocking the Server struct
+type IServer interface {
+	AuditPackages(p []string, a string) (StatusURLResult, error)
+}
+
 // Server is a struct that holds the IQ Server options, logger and other properties related to
 // communicating with Nexus IQ Server
 type Server struct {
