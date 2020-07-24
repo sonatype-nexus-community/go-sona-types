@@ -213,3 +213,6 @@ func setupIQServer(t *testing.T) *Server {
 	logger, _ := test.NewNullLogger()
 	return New(logger, setupIqOptions())
 }
+
+// use compiler to ensure IServer interface is implemented by Server
+var _ IServer = (*Server)(nil)

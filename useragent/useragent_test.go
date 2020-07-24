@@ -193,3 +193,6 @@ func setupUserAgent(t *testing.T) *Agent {
 	}
 	return New(logger, options)
 }
+
+// use compiler to ensure IAgent interface is implemented by Agent
+var _ IAgent = (*Agent)(nil)
