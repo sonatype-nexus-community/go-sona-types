@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -58,7 +59,7 @@ func (o *Server) NoCacheNoProblems() error {
 
 // New is intended to be the way to obtain a Server instance, where you have control of the options
 func New(logger *logrus.Logger, options types.Options) *Server {
-	ua := useragent.New(logger, useragent.Options{ClientTool: options.Tool, Version: options.Version})
+	ua := useragent.New(logger, useragent.Options{ClientTool: options.Tool, Version: options.Version, GoArch: runtime.GOARCH, GoOS: runtime.GOOS})
 	return &Server{
 		logLady: logger,
 		Options: options,
