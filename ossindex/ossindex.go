@@ -173,11 +173,11 @@ func (o *Server) setupRequest(jsonStr []byte) (req *http.Request, err error) {
 	if err != nil {
 		return nil, err
 	}
-	if o.Options.Version != "" {
-		req.Header.Set("User-Agent", o.agent.GetUserAgent())
-	} else {
-		req.Header.Set("User-Agent", o.agent.GetUserAgent())
-	}
+
+	ua := o.agent.GetUserAgent()
+
+	req.Header.Set("User-Agent", ua)
+	o.logLady.WithField("user_agent", ua).Debug("Obtained User Agent for request to OSS Index")
 
 	req.Header.Set("Content-Type", "application/json")
 	if o.Options.Username != "" && o.Options.Token != "" {
