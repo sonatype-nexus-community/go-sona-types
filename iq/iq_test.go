@@ -104,7 +104,7 @@ func TestAuditPackages(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer(t)
+	iq := setupIQServer()
 
 	result, _ := iq.AuditPackages(purls, "testapp")
 
@@ -125,7 +125,7 @@ func TestAuditPackagesIqCannotLocateApplicationID(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer(t)
+	iq := setupIQServer()
 
 	_, err := iq.AuditPackages(purls, "testapp")
 	if err == nil {
@@ -163,7 +163,7 @@ func TestAuditPackagesIqDownOrUnreachable(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer(t)
+	iq := setupIQServer()
 
 	_, err := iq.AuditPackages(purls, "testapp")
 	if err == nil {
@@ -201,7 +201,7 @@ func TestAuditPackagesIqUpButBadThirdPartyAPIResponse(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer(t)
+	iq := setupIQServer()
 
 	_, err := iq.AuditPackages(purls, "testapp")
 	if err == nil {
@@ -209,7 +209,7 @@ func TestAuditPackagesIqUpButBadThirdPartyAPIResponse(t *testing.T) {
 	}
 }
 
-func setupIQServer(t *testing.T) *Server {
+func setupIQServer() *Server {
 	logger, _ := test.NewNullLogger()
 	return New(logger, setupIqOptions())
 }
