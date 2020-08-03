@@ -46,13 +46,13 @@ func setupOptions() (options types.Options) {
 }
 
 func TestOssIndexUrlDefault(t *testing.T) {
-	setupTest(t)
+	setupTest()
 	ossindex := setupOSSIndex(t)
 	assert.Equal(t, defaultOssIndexURL, ossindex.getOssIndexURL())
 }
 
 func TestAuditPackages_Empty(t *testing.T) {
-	setupTest(t)
+	setupTest()
 	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("No call should occur with empty package. called: %v", r)
@@ -66,7 +66,7 @@ func TestAuditPackages_Empty(t *testing.T) {
 }
 
 func TestAuditPackages_Nil(t *testing.T) {
-	setupTest(t)
+	setupTest()
 	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("No call should occur with nil package. called: %v", r)
@@ -80,7 +80,7 @@ func TestAuditPackages_Nil(t *testing.T) {
 }
 
 func TestAuditPackages_ErrorHttpRequest(t *testing.T) {
-	setupTest(t)
+	setupTest()
 	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("No call should occur with nil package. called: %v", r)
@@ -94,8 +94,26 @@ func TestAuditPackages_ErrorHttpRequest(t *testing.T) {
 	assert.Equal(t, "parse", parseError.Op)
 }
 
+func TestAuditPackages_ErrorRateLimited(t *testing.T) {
+	setupTest()
+	ossindex := setupOSSIndex(t)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/", r.URL.EscapedPath())
+
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer ts.Close()
+	ossindex.Options.OSSIndexURL = ts.URL
+
+	coordinates, err := ossindex.AuditPackages([]string{"nonexistent-purl"})
+	assert.Equal(t, []types.Coordinate(nil), coordinates)
+	_, ok := err.(*types.OSSIndexRateLimitError)
+	assert.True(t, ok)
+}
+
 func TestAuditPackages_ErrorNonExistentPurl(t *testing.T) {
-	setupTest(t)
+	setupTest()
 	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
@@ -108,11 +126,12 @@ func TestAuditPackages_ErrorNonExistentPurl(t *testing.T) {
 
 	coordinates, err := ossindex.AuditPackages([]string{"nonexistent-purl"})
 	assert.Equal(t, []types.Coordinate(nil), coordinates)
+	assert.Error(t, err)
 	assert.Equal(t, "An error occurred: [400 Bad Request] error accessing OSS Index", err.Error())
 }
 
 func TestAuditPackages_ErrorBadResponseBody(t *testing.T) {
-	setupTest(t)
+	setupTest()
 	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
@@ -133,7 +152,7 @@ func TestAuditPackages_ErrorBadResponseBody(t *testing.T) {
 }
 
 func TestAuditPackages_NewPackage(t *testing.T) {
-	setupTest(t)
+	setupTest()
 	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		verifyClientCallAndWriteValidPackageResponse(t, r, w)
@@ -157,7 +176,7 @@ func verifyClientCallAndWriteValidPackageResponse(t *testing.T, r *http.Request,
 }
 
 func TestAuditPackages_SinglePackage_Cached(t *testing.T) {
-	setupTest(t)
+	setupTest()
 	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("No call should occur with previously cached package. called: %v", r)
@@ -179,7 +198,7 @@ func TestAuditPackages_SinglePackage_Cached(t *testing.T) {
 }
 
 func TestAuditPackages_SinglePackage_Cached_WithExpiredTTL(t *testing.T) {
-	setupTest(t)
+	setupTest()
 	ossindex := setupOSSIndex(t)
 
 	// Set the cache TTL to a date in the past for testing
@@ -214,7 +233,7 @@ func setupOSSIndex(t *testing.T) *Server {
 	return ossindex
 }
 
-func setupTest(t *testing.T) {
+func setupTest() {
 	dec, _ := decimal.NewFromString("9.8")
 	expectedCoordinate = types.Coordinate{
 		Coordinates: lowerCasePurl,
@@ -238,6 +257,7 @@ func TestSetupRequest(t *testing.T) {
 	coordJSON, _ := setupJSON(t)
 	ossindex := setupOSSIndex(t)
 	req, err := ossindex.setupRequest(coordJSON)
+	assert.Nil(t, err)
 
 	assert.Equal(t, req.Header.Get("Content-Type"), "application/json")
 	assert.Equal(t, req.Method, "POST")
