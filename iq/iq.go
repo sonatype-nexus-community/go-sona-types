@@ -80,6 +80,13 @@ func (i *ServerError) Error() string {
 	return fmt.Sprintf("An error occurred: %s", i.Message)
 }
 
+type ServerErrorMissingLicense struct {
+}
+
+func (i *ServerErrorMissingLicense) Error() string {
+	return "error accessing nexus iq server: No valid product license installed"
+}
+
 // IServer is an interface that can be used for mocking the Server struct
 type IServer interface {
 	AuditPackages(p []string, a string) (StatusURLResult, error)
@@ -254,6 +261,11 @@ func (i *Server) getInternalApplicationID(applicationID string) (string, error) 
 			Err:     err,
 			Message: "There was an error communicating with Nexus IQ Server to get your internal application ID",
 		}
+	}
+
+	if resp.StatusCode == http.StatusPaymentRequired {
+		i.logLady.WithField("resp_status_code", resp.Status).Error("Error accessing Nexus IQ Server due to product license")
+		return "", &ServerErrorMissingLicense{}
 	}
 
 	//noinspection GoUnhandledErrorResult

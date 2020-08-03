@@ -19,6 +19,7 @@ package iq
 
 import (
 	"encoding/json"
+	"net/http"
 	"testing"
 	"time"
 
@@ -134,6 +135,25 @@ func TestAuditPackagesIqCannotLocateApplicationID(t *testing.T) {
 	if err.Error() != expectedError {
 		t.Errorf("Error returned is not as expected. Expected: %s but got: %s", expectedError, err.Error())
 	}
+}
+
+func TestAuditPackagesIqInvalidLicense(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/applications?publicId=testapp",
+		httpmock.NewBytesResponder(http.StatusPaymentRequired, []byte{}))
+
+	var purls []string
+	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
+	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
+
+	iq := setupIQServer()
+
+	_, err := iq.AuditPackages(purls, "testapp")
+	assert.Error(t, err)
+	_, ok := err.(*ServerErrorMissingLicense)
+	assert.True(t, ok)
 }
 
 func TestAuditPackagesIqDownOrUnreachable(t *testing.T) {
