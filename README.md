@@ -81,3 +81,17 @@ ua = useragent.Default(logger)
 // Obtains a properly formatted user-agent string for communicating with OSS Index or Nexus IQ Server
 useragent := ua.GetUserAgent()
 ```
+
+### Release Process
+
+Follow the steps below to release a new version.
+
+  1. Checkout/pull the latest `master` branch, and create a new tag with the desired semantic version and a helpful note:
+  
+         git tag -a v0.0.x -m "Helpful message in tag."
+         
+  2. Push the tag up:
+  
+         git push origin v0.0.x
+         
+  3. There is no step 3.
