@@ -164,6 +164,9 @@ func (o *Server) doRequestToOSSIndex(jsonStr []byte) (coordinates []types.Coordi
 	return
 }
 
+const msgMissingOssiToken = "missing ossi token"
+const msgMissingOssiUsername = "missing ossi username"
+
 func (o *Server) setupRequest(jsonStr []byte) (req *http.Request, err error) {
 	o.logLady.WithField("json_string", string(jsonStr)).Debug("Setting up new POST request to OSS Index")
 	req, err = http.NewRequest(
@@ -181,7 +184,13 @@ func (o *Server) setupRequest(jsonStr []byte) (req *http.Request, err error) {
 	o.logLady.WithField("user_agent", ua).Debug("Obtained User Agent for request to OSS Index")
 
 	req.Header.Set("Content-Type", "application/json")
-	if o.Options.Username != "" && o.Options.Token != "" {
+	if o.Options.Username != "" || o.Options.Token != "" {
+		switch {
+		case o.Options.Token == "":
+			return nil, fmt.Errorf(msgMissingOssiToken)
+		case o.Options.Username == "":
+			return nil, fmt.Errorf(msgMissingOssiUsername)
+		}
 		o.logLady.Info("Set OSS Index Basic Auth")
 		req.SetBasicAuth(o.Options.Username, o.Options.Token)
 	}
