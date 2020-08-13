@@ -19,6 +19,7 @@ package ossindex
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -266,6 +267,19 @@ func TestSetupRequest(t *testing.T) {
 	assert.Equal(t, token, "test")
 	assert.Equal(t, ok, true)
 	assert.Nil(t, err)
+}
+
+func TestSetupRequestMissingCredentials(t *testing.T) {
+	coordJSON, _ := setupJSON(t)
+	ossindex := setupOSSIndex(t)
+	ossindex.Options.Token = ""
+	_, err := ossindex.setupRequest(coordJSON)
+	assert.Equal(t, fmt.Errorf(msgMissingOssiToken), err)
+
+	ossindex.Options.Token = "myToken"
+	ossindex.Options.Username = ""
+	_, err = ossindex.setupRequest(coordJSON)
+	assert.Equal(t, fmt.Errorf(msgMissingOssiUsername), err)
 }
 
 // TODO: Use this for more than just TestSetupRequest
