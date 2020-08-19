@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -138,7 +139,25 @@ type Options struct {
 }
 
 // New is intended to be the way to obtain a iq instance, where you control the options
-func New(logger *logrus.Logger, options Options) *Server {
+func New(logger *logrus.Logger, options Options) (server *Server, err error) {
+	if logger == nil {
+		err = fmt.Errorf("missing logger")
+		return
+	}
+
+	if err = validateRequiredOption(options, "Application"); err != nil {
+		return
+	}
+	if err = validateRequiredOption(options, "Server"); err != nil {
+		return
+	}
+	if err = validateRequiredOption(options, "User"); err != nil {
+		return
+	}
+	if err = validateRequiredOption(options, "Token"); err != nil {
+		return
+	}
+
 	if options.PollInterval == 0 {
 		logger.Trace("Setting Poll Interval to 1 second since it wasn't set explicitly")
 		options.PollInterval = 1 * time.Second
@@ -151,7 +170,17 @@ func New(logger *logrus.Logger, options Options) *Server {
 
 	ua := useragent.New(logger, useragent.Options{ClientTool: options.Tool, Version: options.Version})
 
-	return &Server{logLady: logger, Options: options, tries: 0, agent: ua}
+	server = &Server{logLady: logger, Options: options, tries: 0, agent: ua}
+	return
+}
+
+func validateRequiredOption(options Options, optionName string) (err error) {
+	e := reflect.ValueOf(&options).Elem()
+	zero := e.FieldByName(optionName).IsZero()
+	if zero {
+		err = fmt.Errorf("missing options.%s", optionName)
+	}
+	return
 }
 
 // AuditPackages accepts a slice of purls, and configuration, and will submit these to

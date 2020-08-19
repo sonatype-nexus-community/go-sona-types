@@ -19,6 +19,7 @@ package iq
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex"
 	"net/http"
 	"strings"
@@ -74,6 +75,33 @@ func setupIqOptions() (options Options) {
 	return
 }
 
+func TestNewRequiredOptions(t *testing.T) {
+	server, err := New(nil, Options{})
+	assert.Equal(t, fmt.Errorf("missing logger"), err)
+	assert.Nil(t, server)
+
+	logger, _ := test.NewNullLogger()
+	server, err = New(logger, Options{})
+	assert.Equal(t, fmt.Errorf("missing options.Application"), err)
+	assert.Nil(t, server)
+
+	server, err = New(logger, Options{Application: "myAppId"})
+	assert.Equal(t, fmt.Errorf("missing options.Server"), err)
+	assert.Nil(t, server)
+
+	server, err = New(logger, Options{Application: "myAppId", Server: "myServer"})
+	assert.Equal(t, fmt.Errorf("missing options.User"), err)
+	assert.Nil(t, server)
+
+	server, err = New(logger, Options{Application: "myAppId", Server: "myServer", User: "myUser"})
+	assert.Equal(t, fmt.Errorf("missing options.Token"), err)
+	assert.Nil(t, server)
+
+	server, err = New(logger, Options{Application: "myAppId", Server: "myServer", User: "myUser", Token: "myToken"})
+	assert.NotNil(t, server)
+	assert.Nil(t, err)
+}
+
 func TestAuditPackages(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -107,7 +135,7 @@ func TestAuditPackages(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
 	result, _ := iq.AuditPackages(purls)
 
@@ -128,7 +156,7 @@ func TestAuditPackagesIqCannotLocateApplicationID(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
 	_, err := iq.AuditPackages(purls)
 	if err == nil {
@@ -150,7 +178,7 @@ func TestAuditPackagesIqInvalidLicense(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
 	_, err := iq.AuditPackages(purls)
 	assert.Error(t, err)
@@ -185,7 +213,7 @@ func TestAuditPackagesIqDownOrUnreachable(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
 	_, err := iq.AuditPackages(purls)
 	if err == nil {
@@ -212,7 +240,7 @@ func TestAuditPackagesWithOssiError(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
 	_, err := iq.AuditPackages(purls)
 	assert.Error(t, err)
@@ -249,7 +277,7 @@ func TestAuditPackagesThirdPartyAPIResponseNotFound(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
 	_, err := iq.AuditPackages(purls)
 	assert.Error(t, err)
@@ -286,7 +314,7 @@ func TestAuditPackagesThirdPartyAPIMissingResultURL(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
 	_, err := iq.AuditPackages(purls)
 	assert.Error(t, err)
@@ -323,7 +351,7 @@ func TestAuditPackagesIqUpButBadThirdPartyAPIResponse(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
 	_, err := iq.AuditPackages(purls)
 	if err == nil {
@@ -331,9 +359,11 @@ func TestAuditPackagesIqUpButBadThirdPartyAPIResponse(t *testing.T) {
 	}
 }
 
-func setupIQServer() *Server {
+func setupIQServer(t *testing.T) (server *Server) {
 	logger, _ := test.NewNullLogger()
-	return New(logger, setupIqOptions())
+	server, err := New(logger, setupIqOptions())
+	assert.Nil(t, err)
+	return
 }
 
 // use compiler to ensure IServer interface is implemented by Server
