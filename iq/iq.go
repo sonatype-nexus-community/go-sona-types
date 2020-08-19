@@ -89,7 +89,7 @@ func (i *ServerErrorMissingLicense) Error() string {
 
 // IServer is an interface that can be used for mocking the Server struct
 type IServer interface {
-	AuditPackages(p []string, a string) (StatusURLResult, error)
+	AuditPackages(p []string) (StatusURLResult, error)
 }
 
 // Server is a struct that holds the IQ Server options, logger and other properties related to
@@ -154,12 +154,12 @@ func New(logger *logrus.Logger, options Options) *Server {
 	return &Server{logLady: logger, Options: options, tries: 0, agent: ua}
 }
 
-// AuditPackages accepts a slice of purls, public application ID, and configuration, and will submit these to
+// AuditPackages accepts a slice of purls, and configuration, and will submit these to
 // Nexus IQ Server for audit, and return a struct of StatusURLResult
-func (i *Server) AuditPackages(purls []string, applicationID string) (StatusURLResult, error) {
+func (i *Server) AuditPackages(purls []string) (StatusURLResult, error) {
 	i.logLady.WithFields(logrus.Fields{
 		"purls":          purls,
-		"application_id": applicationID,
+		"application_id": i.Options.Application,
 	}).Info("Beginning audit with IQ")
 
 	if i.Options.User == "admin" && i.Options.Token == "admin123" {
@@ -167,7 +167,7 @@ func (i *Server) AuditPackages(purls []string, applicationID string) (StatusURLR
 		warnUserOfBadLifeChoices()
 	}
 
-	internalID, err := i.getInternalApplicationID(applicationID)
+	internalID, err := i.getInternalApplicationID(i.Options.Application)
 	if internalID == "" && err != nil {
 		i.logLady.Error("Internal ID not obtained from Nexus IQ")
 		return statusURLResp, err
@@ -369,20 +369,18 @@ func (i *Server) submitToThirdPartyAPI(sbom string, internalID string) (string, 
 		}
 		return response.StatusURL, err
 	}
+
+	// something went wrong
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	i.logLady.WithFields(logrus.Fields{
 		"body":        string(bodyBytes),
 		"status_code": resp.StatusCode,
 		"status":      resp.Status,
 	}).Info("Request not accepted")
-	if err != nil {
-		return "", &ServerError{
-			Err:     err,
-			Message: "There was an issue submitting your sbom to the Nexus IQ Third Party API",
-		}
+	return "", &ServerError{
+		Err:     fmt.Errorf("status_code: %d, body: %s, err: %+v", resp.StatusCode, string(bodyBytes), err),
+		Message: "There was an issue submitting your sbom to the Nexus IQ Third Party API",
 	}
-
-	return "", err
 }
 
 func (i *Server) pollIQServer(statusURL string, finished chan resultError) error {
