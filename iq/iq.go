@@ -401,6 +401,10 @@ func (i *Server) submitToThirdPartyAPI(sbom string, internalID string) (string, 
 
 	// something went wrong
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		i.logLady.Error(err)
+		// do not return to allow the ServerError below to be returned
+	}
 	i.logLady.WithFields(logrus.Fields{
 		"body":        string(bodyBytes),
 		"status_code": resp.StatusCode,
