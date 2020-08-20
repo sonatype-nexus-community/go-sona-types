@@ -19,7 +19,10 @@ package iq
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/sonatype-nexus-community/go-sona-types/ossindex"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -72,6 +75,33 @@ func setupIqOptions() (options Options) {
 	return
 }
 
+func TestNewRequiredOptions(t *testing.T) {
+	server, err := New(nil, Options{})
+	assert.Equal(t, fmt.Errorf("missing logger"), err)
+	assert.Nil(t, server)
+
+	logger, _ := test.NewNullLogger()
+	server, err = New(logger, Options{})
+	assert.Equal(t, fmt.Errorf("missing options.Application"), err)
+	assert.Nil(t, server)
+
+	server, err = New(logger, Options{Application: "myAppId"})
+	assert.Equal(t, fmt.Errorf("missing options.Server"), err)
+	assert.Nil(t, server)
+
+	server, err = New(logger, Options{Application: "myAppId", Server: "myServer"})
+	assert.Equal(t, fmt.Errorf("missing options.User"), err)
+	assert.Nil(t, server)
+
+	server, err = New(logger, Options{Application: "myAppId", Server: "myServer", User: "myUser"})
+	assert.Equal(t, fmt.Errorf("missing options.Token"), err)
+	assert.Nil(t, server)
+
+	server, err = New(logger, Options{Application: "myAppId", Server: "myServer", User: "myUser", Token: "myToken"})
+	assert.NotNil(t, server)
+	assert.Nil(t, err)
+}
+
 func TestAuditPackages(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -105,9 +135,9 @@ func TestAuditPackages(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
-	result, _ := iq.AuditPackages(purls, "testapp")
+	result, _ := iq.AuditPackages(purls)
 
 	statusExpected := StatusURLResult{PolicyAction: "None", ReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e", IsError: false}
 
@@ -126,9 +156,9 @@ func TestAuditPackagesIqCannotLocateApplicationID(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
-	_, err := iq.AuditPackages(purls, "testapp")
+	_, err := iq.AuditPackages(purls)
 	if err == nil {
 		t.Errorf("err should not be nil, expected an err with the following text: %s", expectedError)
 	}
@@ -148,9 +178,9 @@ func TestAuditPackagesIqInvalidLicense(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
-	_, err := iq.AuditPackages(purls, "testapp")
+	_, err := iq.AuditPackages(purls)
 	assert.Error(t, err)
 	_, ok := err.(*ServerErrorMissingLicense)
 	assert.True(t, ok)
@@ -183,12 +213,112 @@ func TestAuditPackagesIqDownOrUnreachable(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
-	_, err := iq.AuditPackages(purls, "testapp")
+	_, err := iq.AuditPackages(purls)
 	if err == nil {
 		t.Error("There is an error")
 	}
+}
+
+func TestAuditPackagesWithOssiError(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	// clear ossi cache so call to ossi is executed
+	logger, _ := test.NewNullLogger()
+	ossindexServer := ossindex.New(logger, types.Options{DBCacheName: setupIqOptions().DBCacheName})
+	assert.Nil(t, ossindexServer.NoCacheNoProblems())
+
+	httpmock.RegisterResponder("POST", "https://ossindex.sonatype.org/api/v3/component-report",
+		httpmock.NewBytesResponder(404, []byte("")))
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/applications?publicId=testapp",
+		httpmock.NewStringResponder(200, applicationsResponse))
+
+	var purls []string
+	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
+	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
+
+	iq := setupIQServer(t)
+
+	_, err := iq.AuditPackages(purls)
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "There was an issue auditing packages using OSS Index"), err)
+}
+
+func TestAuditPackagesThirdPartyAPIResponseNotFound(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	jsonCoordinates, _ := json.Marshal([]types.Coordinate{
+		{
+			Coordinates:     "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2",
+			Reference:       "https://ossindex.sonatype.org/component/pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2",
+			Vulnerabilities: []types.Vulnerability{},
+		},
+		{
+			Coordinates:     "pkg:golang/github.com/go-yaml/yaml@v2.2.2",
+			Reference:       "https://ossindex.sonatype.org/component/pkg:golang/github.com/go-yaml/yaml@v2.2.2",
+			Vulnerabilities: []types.Vulnerability{},
+		},
+	})
+
+	httpmock.RegisterResponder("POST", "https://ossindex.sonatype.org/api/v3/component-report",
+		httpmock.NewStringResponder(200, string(jsonCoordinates)))
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/applications?publicId=testapp",
+		httpmock.NewStringResponder(200, applicationsResponse))
+
+	httpmock.RegisterResponder("POST", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/sources/nancy?stageId=develop",
+		httpmock.NewBytesResponder(404, []byte("")))
+
+	var purls []string
+	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
+	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
+
+	iq := setupIQServer(t)
+
+	_, err := iq.AuditPackages(purls)
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "status_code: 404, body: "), err)
+}
+
+func TestAuditPackagesThirdPartyAPIMissingResultURL(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	jsonCoordinates, _ := json.Marshal([]types.Coordinate{
+		{
+			Coordinates:     "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2",
+			Reference:       "https://ossindex.sonatype.org/component/pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2",
+			Vulnerabilities: []types.Vulnerability{},
+		},
+		{
+			Coordinates:     "pkg:golang/github.com/go-yaml/yaml@v2.2.2",
+			Reference:       "https://ossindex.sonatype.org/component/pkg:golang/github.com/go-yaml/yaml@v2.2.2",
+			Vulnerabilities: []types.Vulnerability{},
+		},
+	})
+
+	httpmock.RegisterResponder("POST", "https://ossindex.sonatype.org/api/v3/component-report",
+		httpmock.NewStringResponder(200, string(jsonCoordinates)))
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/applications?publicId=testapp",
+		httpmock.NewStringResponder(200, applicationsResponse))
+
+	httpmock.RegisterResponder("POST", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/sources/nancy?stageId=develop",
+		httpmock.NewBytesResponder(202, []byte("{\"statusUrl\": \"\"}")))
+
+	var purls []string
+	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
+	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
+
+	iq := setupIQServer(t)
+
+	_, err := iq.AuditPackages(purls)
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "There was an issue obtaining a StatusURL"), err)
 }
 
 func TestAuditPackagesIqUpButBadThirdPartyAPIResponse(t *testing.T) {
@@ -221,17 +351,19 @@ func TestAuditPackagesIqUpButBadThirdPartyAPIResponse(t *testing.T) {
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
-	iq := setupIQServer()
+	iq := setupIQServer(t)
 
-	_, err := iq.AuditPackages(purls, "testapp")
+	_, err := iq.AuditPackages(purls)
 	if err == nil {
 		t.Error("There is an error")
 	}
 }
 
-func setupIQServer() *Server {
+func setupIQServer(t *testing.T) (server *Server) {
 	logger, _ := test.NewNullLogger()
-	return New(logger, setupIqOptions())
+	server, err := New(logger, setupIqOptions())
+	assert.Nil(t, err)
+	return
 }
 
 // use compiler to ensure IServer interface is implemented by Server

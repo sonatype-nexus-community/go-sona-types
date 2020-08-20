@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -89,7 +90,7 @@ func (i *ServerErrorMissingLicense) Error() string {
 
 // IServer is an interface that can be used for mocking the Server struct
 type IServer interface {
-	AuditPackages(p []string, a string) (StatusURLResult, error)
+	AuditPackages(p []string) (StatusURLResult, error)
 }
 
 // Server is a struct that holds the IQ Server options, logger and other properties related to
@@ -138,7 +139,25 @@ type Options struct {
 }
 
 // New is intended to be the way to obtain a iq instance, where you control the options
-func New(logger *logrus.Logger, options Options) *Server {
+func New(logger *logrus.Logger, options Options) (server *Server, err error) {
+	if logger == nil {
+		err = fmt.Errorf("missing logger")
+		return
+	}
+
+	if err = validateRequiredOption(options, "Application"); err != nil {
+		return
+	}
+	if err = validateRequiredOption(options, "Server"); err != nil {
+		return
+	}
+	if err = validateRequiredOption(options, "User"); err != nil {
+		return
+	}
+	if err = validateRequiredOption(options, "Token"); err != nil {
+		return
+	}
+
 	if options.PollInterval == 0 {
 		logger.Trace("Setting Poll Interval to 1 second since it wasn't set explicitly")
 		options.PollInterval = 1 * time.Second
@@ -151,15 +170,25 @@ func New(logger *logrus.Logger, options Options) *Server {
 
 	ua := useragent.New(logger, useragent.Options{ClientTool: options.Tool, Version: options.Version})
 
-	return &Server{logLady: logger, Options: options, tries: 0, agent: ua}
+	server = &Server{logLady: logger, Options: options, tries: 0, agent: ua}
+	return
 }
 
-// AuditPackages accepts a slice of purls, public application ID, and configuration, and will submit these to
+func validateRequiredOption(options Options, optionName string) (err error) {
+	e := reflect.ValueOf(&options).Elem()
+	zero := e.FieldByName(optionName).IsZero()
+	if zero {
+		err = fmt.Errorf("missing options.%s", optionName)
+	}
+	return
+}
+
+// AuditPackages accepts a slice of purls, and configuration, and will submit these to
 // Nexus IQ Server for audit, and return a struct of StatusURLResult
-func (i *Server) AuditPackages(purls []string, applicationID string) (StatusURLResult, error) {
+func (i *Server) AuditPackages(purls []string) (StatusURLResult, error) {
 	i.logLady.WithFields(logrus.Fields{
 		"purls":          purls,
-		"application_id": applicationID,
+		"application_id": i.Options.Application,
 	}).Info("Beginning audit with IQ")
 
 	if i.Options.User == "admin" && i.Options.Token == "admin123" {
@@ -167,7 +196,7 @@ func (i *Server) AuditPackages(purls []string, applicationID string) (StatusURLR
 		warnUserOfBadLifeChoices()
 	}
 
-	internalID, err := i.getInternalApplicationID(applicationID)
+	internalID, err := i.getInternalApplicationID(i.Options.Application)
 	if internalID == "" && err != nil {
 		i.logLady.Error("Internal ID not obtained from Nexus IQ")
 		return statusURLResp, err
@@ -369,20 +398,22 @@ func (i *Server) submitToThirdPartyAPI(sbom string, internalID string) (string, 
 		}
 		return response.StatusURL, err
 	}
+
+	// something went wrong
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		i.logLady.Error(err)
+		// do not return to allow the ServerError below to be returned
+	}
 	i.logLady.WithFields(logrus.Fields{
 		"body":        string(bodyBytes),
 		"status_code": resp.StatusCode,
 		"status":      resp.Status,
 	}).Info("Request not accepted")
-	if err != nil {
-		return "", &ServerError{
-			Err:     err,
-			Message: "There was an issue submitting your sbom to the Nexus IQ Third Party API",
-		}
+	return "", &ServerError{
+		Err:     fmt.Errorf("status_code: %d, body: %s, err: %+v", resp.StatusCode, string(bodyBytes), err),
+		Message: "There was an issue submitting your sbom to the Nexus IQ Third Party API",
 	}
-
-	return "", err
 }
 
 func (i *Server) pollIQServer(statusURL string, finished chan resultError) error {
