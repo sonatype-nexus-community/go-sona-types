@@ -94,4 +94,4 @@ Follow the steps below to release a new version.
   
          git push origin v0.0.x
          
-  3. There is no step 3.
+  3. Click the GitHub buttons to make a new release from this new tag. 
