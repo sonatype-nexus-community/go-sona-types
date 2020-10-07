@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -166,6 +167,10 @@ func New(logger *logrus.Logger, options Options) (server *Server, err error) {
 	if options.TTL.IsZero() {
 		logger.Trace("Setting TTL to 12 hours since it wasn't set explicitly")
 		options.TTL = time.Now().Local().Add(time.Hour * 12)
+	}
+
+	if strings.HasSuffix(options.Server, "/") {
+		options.Server = strings.TrimSuffix(options.Server, "/")
 	}
 
 	ua := useragent.New(logger, useragent.Options{ClientTool: options.Tool, Version: options.Version})
