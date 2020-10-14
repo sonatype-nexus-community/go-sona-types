@@ -20,11 +20,12 @@ package iq
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sonatype-nexus-community/go-sona-types/ossindex"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sonatype-nexus-community/go-sona-types/ossindex"
 
 	"github.com/jarcoal/httpmock"
 	"github.com/sirupsen/logrus/hooks/test"
@@ -75,7 +76,7 @@ func setupIqOptions() (options Options) {
 	return
 }
 
-func TestNewRequiredOptions(t *testing.T) {
+func TestNewRequiredAndModifiedOptions(t *testing.T) {
 	server, err := New(nil, Options{})
 	assert.Equal(t, fmt.Errorf("missing logger"), err)
 	assert.Nil(t, server)
@@ -100,6 +101,11 @@ func TestNewRequiredOptions(t *testing.T) {
 	server, err = New(logger, Options{Application: "myAppId", Server: "myServer", User: "myUser", Token: "myToken"})
 	assert.NotNil(t, server)
 	assert.Nil(t, err)
+
+	server, err = New(logger, Options{Application: "myAppId", Server: "myServer/", User: "myUser", Token: "myToken"})
+	assert.NotNil(t, server)
+	assert.Nil(t, err)
+	assert.Equal(t, server.Options.Server, "myServer")
 }
 
 func TestAuditPackages(t *testing.T) {
