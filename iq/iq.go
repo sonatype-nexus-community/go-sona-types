@@ -26,6 +26,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/package-url/packageurl-go"
 	"github.com/sirupsen/logrus"
 	"github.com/sonatype-nexus-community/go-sona-types/cyclonedx"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex"
@@ -183,6 +184,33 @@ func validateRequiredOption(options Options, optionName string) (err error) {
 	return
 }
 
+// Audit accepts a slice of packageurl.PackageURL and will submit these to
+// Nexus IQ Server for audit, and return a struct of StatusURLResult
+func (i *Server) Audit(purls []packageurl.PackageURL) (StatusURLResult, error) {
+	i.logLady.WithFields(logrus.Fields{
+		"purls":          purls,
+		"application_id": i.Options.Application,
+	}).Info("Beginning audit with IQ using packageurl.PackageURL")
+
+	if i.Options.User == "admin" && i.Options.Token == "admin123" {
+		i.logLady.Info("Warning user of questionable life choices related to username and password")
+		warnUserOfBadLifeChoices()
+	}
+
+	internalID, err := i.getInternalApplicationID(i.Options.Application)
+	if internalID == "" && err != nil {
+		i.logLady.Error("Internal ID not obtained from Nexus IQ")
+		return statusURLResp, err
+	}
+
+	dx := cyclonedx.Default(i.logLady)
+
+	sbom := dx.FromPackageURLs(purls)
+	i.logLady.WithField("sbom", sbom).Debug("Obtained cyclonedx SBOM")
+
+	return i.getStatusURL(internalID, sbom)
+}
+
 // AuditPackages accepts a slice of purls, and configuration, and will submit these to
 // Nexus IQ Server for audit, and return a struct of StatusURLResult
 func (i *Server) AuditPackages(purls []string) (StatusURLResult, error) {
@@ -224,6 +252,10 @@ func (i *Server) AuditPackages(purls []string) (StatusURLResult, error) {
 	sbom := dx.FromCoordinates(resultsFromOssIndex)
 	i.logLady.WithField("sbom", sbom).Debug("Obtained cyclonedx SBOM")
 
+	return i.getStatusURL(internalID, sbom)
+}
+
+func (i *Server) getStatusURL(internalID string, sbom string) (StatusURLResult, error) {
 	i.logLady.WithFields(logrus.Fields{
 		"internal_id": internalID,
 		"sbom":        sbom,

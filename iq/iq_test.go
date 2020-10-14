@@ -20,11 +20,13 @@ package iq
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sonatype-nexus-community/go-sona-types/ossindex"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/package-url/packageurl-go"
+	"github.com/sonatype-nexus-community/go-sona-types/ossindex"
 
 	"github.com/jarcoal/httpmock"
 	"github.com/sirupsen/logrus/hooks/test"
@@ -138,6 +140,32 @@ func TestAuditPackages(t *testing.T) {
 	iq := setupIQServer(t)
 
 	result, _ := iq.AuditPackages(purls)
+
+	statusExpected := StatusURLResult{PolicyAction: "None", ReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e", IsError: false}
+
+	assert.Equal(t, result, statusExpected)
+}
+
+func TestAudit(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	purls := []packageurl.PackageURL{}
+	purls = append(purls, packageurl.PackageURL{Type: "golang", Name: "github.com/go-yaml/yaml", Version: "@v2.2.2"})
+	purls = append(purls, packageurl.PackageURL{Type: "golang", Name: "golang.org/x/crypto", Version: "v0.0.0-20190308221718-c2843e01d9a2"})
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/applications?publicId=testapp",
+		httpmock.NewStringResponder(200, applicationsResponse))
+
+	httpmock.RegisterResponder("POST", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/sources/nancy?stageId=develop",
+		httpmock.NewStringResponder(202, thirdPartyAPIResultJSON))
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/status/9cee2b6366fc4d328edc318eae46b2cb",
+		httpmock.NewStringResponder(200, pollingResult))
+
+	iq := setupIQServer(t)
+
+	result, _ := iq.Audit(purls)
 
 	statusExpected := StatusURLResult{PolicyAction: "None", ReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e", IsError: false}
 
