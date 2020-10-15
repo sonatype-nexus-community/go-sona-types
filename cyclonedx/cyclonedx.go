@@ -135,7 +135,7 @@ const (
 type ICycloneDX interface {
 	FromCoordinates(r []types.Coordinate) string
 	FromPackageURLs(r []packageurl.PackageURL) string
-	FromPackageURLAndSha1s(r []packageurl.PackageURL, sha1s []File)
+	FromPackageURLsAndSha1s(r []packageurl.PackageURL, sha1s []File)
 	FromSHA1s(r []Sha1SBOM) string
 }
 
