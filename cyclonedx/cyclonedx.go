@@ -185,7 +185,7 @@ func (c *CycloneDX) FromPackageURLs(results []packageurl.PackageURL) string {
 // FromPackageURLsAndSha1s will take []packageurl.PackageURL and []File and convert them
 // into a minimal 1.1 CycloneDX sbom
 func (c *CycloneDX) FromPackageURLsAndSha1s(results []packageurl.PackageURL, sha1s []File) string {
-	return c.processPackageURLsIntoSBOMSchema1_1(results)
+	return c.processPackageURLsAndSha1sIntoSBOMSchema1_1(results, sha1s)
 }
 
 // FromSHA1s will take []Sha1SBOM and convert them
