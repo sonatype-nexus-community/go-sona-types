@@ -111,6 +111,13 @@ type CycloneDXError struct {
 	Message string
 }
 
+type File struct {
+	Path      string
+	Extension string
+	Explode   bool
+	Hash      string
+}
+
 func (c *CycloneDXError) Error() string {
 	if c.Err != nil {
 		return fmt.Sprintf("An error occurred: %s, err: %s", c.Message, c.Err.Error())
@@ -128,6 +135,7 @@ const (
 type ICycloneDX interface {
 	FromCoordinates(r []types.Coordinate) string
 	FromPackageURLs(r []packageurl.PackageURL) string
+	FromPackageURLAndSha1s(r []packageurl.PackageURL, sha1s []File)
 	FromSHA1s(r []Sha1SBOM) string
 }
 
@@ -174,6 +182,12 @@ func (c *CycloneDX) FromPackageURLs(results []packageurl.PackageURL) string {
 	return c.processPackageURLsIntoSBOMSchema1_1(results)
 }
 
+// FromPackageURLsAndSha1s will take []packageurl.PackageURL and []File and convert them
+// into a minimal 1.1 CycloneDX sbom
+func (c *CycloneDX) FromPackageURLsAndSha1s(results []packageurl.PackageURL, sha1s []File) string {
+	return c.processPackageURLsIntoSBOMSchema1_1(results)
+}
+
 // FromSHA1s will take []Sha1SBOM and convert them
 // into a minimal 1.1 CycloneDX sbom
 func (c *CycloneDX) FromSHA1s(results []Sha1SBOM) string {
@@ -212,6 +226,40 @@ func (c *CycloneDX) processPackageURLsIntoSBOMSchema1_1(results []packageurl.Pac
 			Name:    v.Name,
 			Version: v.Version,
 		}
+
+		sbom.Components.Component = append(sbom.Components.Component, component)
+	}
+
+	return c.processAndReturnSbom(sbom)
+}
+
+func (c *CycloneDX) processPackageURLsAndSha1sIntoSBOMSchema1_1(results []packageurl.PackageURL, sha1s []File) string {
+	sbom := c.createSbomDocument()
+	for _, v := range results {
+		component := Component{
+			Type:    "library",
+			BomRef:  v.ToString(),
+			Purl:    v.ToString(),
+			Name:    v.Name,
+			Version: v.Version,
+		}
+
+		sbom.Components.Component = append(sbom.Components.Component, component)
+	}
+
+	for _, v := range sha1s {
+		component := Component{
+			Type:    "library",
+			BomRef:  v.Hash,
+			Name:    v.Path,
+			Version: "0",
+		}
+
+		hashes := Hashes{}
+
+		hashes.Hash = append(hashes.Hash, Hash{Alg: "SHA-1", Attribute: v.Hash})
+
+		component.Hashes = &hashes
 
 		sbom.Components.Component = append(sbom.Components.Component, component)
 	}

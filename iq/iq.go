@@ -26,6 +26,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/package-url/packageurl-go"
 	"github.com/sirupsen/logrus"
 	"github.com/sonatype-nexus-community/go-sona-types/cyclonedx"
@@ -184,9 +185,9 @@ func validateRequiredOption(options Options, optionName string) (err error) {
 	return
 }
 
-// Audit accepts a slice of packageurl.PackageURL and will submit these to
+// Audit accepts a slice of packageurl.PackageURL, and slice of []cyclonedx.File and will submit these to
 // Nexus IQ Server for audit, and return a struct of StatusURLResult
-func (i *Server) Audit(purls []packageurl.PackageURL) (StatusURLResult, error) {
+func (i *Server) Audit(purls []packageurl.PackageURL, sha1s []cyclonedx.File) (StatusURLResult, error) {
 	i.logLady.WithFields(logrus.Fields{
 		"purls":          purls,
 		"application_id": i.Options.Application,
@@ -205,7 +206,7 @@ func (i *Server) Audit(purls []packageurl.PackageURL) (StatusURLResult, error) {
 
 	dx := cyclonedx.Default(i.logLady)
 
-	sbom := dx.FromPackageURLs(purls)
+	sbom := dx.FromPackageURLsAndSha1s(purls, sha1s)
 	i.logLady.WithField("sbom", sbom).Debug("Obtained cyclonedx SBOM")
 
 	return i.getStatusURL(internalID, sbom)
@@ -280,6 +281,10 @@ func (i *Server) getStatusURL(internalID string, sbom string) (StatusURLResult, 
 	finishedChan := make(chan resultError)
 	defer close(finishedChan)
 
+	s := spinner.New(spinner.CharSets[11], 400*time.Millisecond)
+	s.Suffix = " Polling Nexus IQ Server"
+	s.FinalMSG = "Finished Polling Nexus IQ Server"
+	s.Start()
 	go func() resultError {
 		for {
 			select {
@@ -295,6 +300,7 @@ func (i *Server) getStatusURL(internalID string, sbom string) (StatusURLResult, 
 	}()
 
 	r := <-finishedChan
+	s.Stop()
 	return statusURLResp, r.err
 }
 
@@ -509,7 +515,6 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 		finished <- resultError{finished: true, err: nil}
 	}
 	i.tries++
-	fmt.Print(".")
 	return err
 }
 
