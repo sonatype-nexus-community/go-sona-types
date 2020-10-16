@@ -465,7 +465,7 @@ func (i *Server) createApplicationID(applicationID string) (appID string, err er
 
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s%s%s", i.Options.Server, createApplicationIDURL),
+		fmt.Sprintf("%s%s", i.Options.Server, createApplicationIDURL),
 		bytes.NewBuffer(js),
 	)
 	if err != nil {
