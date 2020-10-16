@@ -603,7 +603,7 @@ func (i *Server) getInternalApplicationID(applicationID string) (string, error) 
 			"application_id": applicationID,
 		}).Error("Unable to retrieve an internal ID for the specified public application ID")
 
-		return "", &ApplicationIDError{}
+		return "", &ApplicationIDError{ApplicationID: applicationID}
 	}
 	i.logLady.WithFields(logrus.Fields{
 		"status_code": resp.StatusCode,
