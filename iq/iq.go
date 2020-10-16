@@ -56,10 +56,13 @@ type StatusURLResult struct {
 
 type organizationResult struct {
 	Organizations []struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-		Tags []tags `json:"tags"`
 	} `json:"organizations"`
+}
+
+type organization struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Tags []tags `json:"tags"`
 }
 
 type applicationCreation struct {
