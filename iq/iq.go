@@ -611,7 +611,14 @@ func (i *Server) getInternalApplicationID(applicationID string) (string, error) 
 
 		return "", &ApplicationIDError{ApplicationID: applicationID}
 	}
+	// something went wrong
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		i.logLady.Error(err)
+		// do not return to allow the ServerError below to be returned
+	}
 	i.logLady.WithFields(logrus.Fields{
+		"body":        string(bodyBytes),
 		"status_code": resp.StatusCode,
 	}).Error("Error communicating with Nexus IQ Server application endpoint")
 	return "", &ServerError{
