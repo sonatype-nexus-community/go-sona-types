@@ -397,6 +397,8 @@ func (i *Server) getOrganizations() (organizationResult, error) {
 		}
 	}
 
+	i.logLady.Debug("Got response from IQ Server for Organizations")
+
 	if resp.StatusCode == http.StatusPaymentRequired {
 		i.logLady.WithField("resp_status_code", resp.Status).Error("Error accessing Nexus IQ Server due to product license")
 		return organizationResult{}, &ServerErrorMissingLicense{}
@@ -422,6 +424,8 @@ func (i *Server) getOrganizations() (organizationResult, error) {
 				Message: "failed to unmarshal response",
 			}
 		}
+
+		return orgs, nil
 	}
 	return organizationResult{}, &ServerError{
 		Err:     fmt.Errorf("Unable to communicate with Nexus IQ Server, status code returned is: %d", resp.StatusCode),
