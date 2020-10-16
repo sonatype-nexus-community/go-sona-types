@@ -363,12 +363,12 @@ func (i *Server) getOrCreateInternalApplicationID(applicationID string) (appID s
 	if err != nil {
 		if _, ok := err.(*ApplicationIDError); ok {
 			i.logLady.Debug("No Application ID found, attempting to create one")
-		} else {
-			return "", err
+			return i.createApplicationID(applicationID)
 		}
+		return
 	}
 
-	return "", nil
+	return
 }
 
 func (i *Server) getOrganizations() (organizationResult, error) {
