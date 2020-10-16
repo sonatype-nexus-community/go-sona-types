@@ -446,11 +446,21 @@ func (i *Server) createApplicationID(applicationID string) (appID string, err er
 	var tagIDs []applicationTag
 
 	if len(orgs.Organizations) > 0 {
-		orgID = orgs.Organizations[0].ID
+		if orgs.Organizations[0].ID == "ROOT_ORGANIZATION_ID" {
+			orgID = orgs.Organizations[1].ID
 
-		if len(orgs.Organizations[0].Tags) > 0 {
-			for _, v := range orgs.Organizations[0].Tags {
-				tagIDs = append(tagIDs, applicationTag{TagID: v.ID})
+			if len(orgs.Organizations[1].Tags) > 0 {
+				for _, v := range orgs.Organizations[1].Tags {
+					tagIDs = append(tagIDs, applicationTag{TagID: v.ID})
+				}
+			}
+		} else {
+			orgID = orgs.Organizations[0].ID
+
+			if len(orgs.Organizations[0].Tags) > 0 {
+				for _, v := range orgs.Organizations[0].Tags {
+					tagIDs = append(tagIDs, applicationTag{TagID: v.ID})
+				}
 			}
 		}
 	} else {
