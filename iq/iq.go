@@ -131,10 +131,11 @@ func (i *ServerError) Error() string {
 // ApplicationMissingError is a custom error type that can be used to tell that a
 // response to IQ was fine, but that no Application exists with that ID
 type ApplicationIDError struct {
+	ApplicationID string
 }
 
 func (i *ApplicationIDError) Error() string {
-	return "No application available with that public application ID"
+	return fmt.Sprint("Unable to retrieve an internal ID for the specified public application ID:", i.ApplicationID)
 }
 
 type ServerErrorMissingLicense struct {

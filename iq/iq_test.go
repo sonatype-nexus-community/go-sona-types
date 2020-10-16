@@ -173,7 +173,7 @@ func TestAudit(t *testing.T) {
 }
 
 func TestAuditPackagesIqCannotLocateApplicationID(t *testing.T) {
-	expectedError := "An error occurred: Unable to retrieve an internal ID, err: Unable to retrieve an internal ID for the specified public application ID: testapp"
+	expectedError := "Unable to retrieve an internal ID for the specified public application ID: testapp"
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
