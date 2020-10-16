@@ -165,7 +165,7 @@ func TestAudit(t *testing.T) {
 
 	iq := setupIQServer(t)
 
-	result, _ := iq.Audit(purls)
+	result, _ := iq.Audit(purls, nil)
 
 	statusExpected := StatusURLResult{PolicyAction: "None", ReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e", IsError: false}
 
