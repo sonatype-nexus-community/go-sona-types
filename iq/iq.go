@@ -55,8 +55,7 @@ type StatusURLResult struct {
 }
 
 type organizationResult struct {
-	Organizations []struct {
-	} `json:"organizations"`
+	Organizations []organization `json:"organizations"`
 }
 
 type organization struct {
