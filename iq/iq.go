@@ -482,6 +482,7 @@ func (i *Server) createApplicationID(applicationID string) (appID string, err er
 
 	req.SetBasicAuth(i.Options.User, i.Options.Token)
 	req.Header.Set("User-Agent", i.agent.GetUserAgent())
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -534,6 +535,7 @@ func (i *Server) createApplicationID(applicationID string) (appID string, err er
 			Message: "Unable to retrieve an internal ID",
 		}
 	}
+
 	i.logLady.WithFields(logrus.Fields{
 		"status_code": resp.StatusCode,
 	}).Error("Error communicating with Nexus IQ Server application endpoint")
