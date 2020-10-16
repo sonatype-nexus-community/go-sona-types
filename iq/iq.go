@@ -135,7 +135,7 @@ type ApplicationIDError struct {
 }
 
 func (i *ApplicationIDError) Error() string {
-	return fmt.Sprint("Unable to retrieve an internal ID for the specified public application ID:", i.ApplicationID)
+	return fmt.Sprint("Unable to retrieve an internal ID for the specified public application ID: ", i.ApplicationID)
 }
 
 type ServerErrorMissingLicense struct {
