@@ -3,10 +3,11 @@ module github.com/sonatype-nexus-community/go-sona-types
 go 1.14
 
 require (
+	github.com/DarthHater/packageurl-go v0.1.1-0.20201020202434-0e5a2acb1446
 	github.com/beevik/etree v1.1.0
+	github.com/briandowns/spinner v1.11.1
 	github.com/jarcoal/httpmock v1.0.5
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
-	github.com/package-url/packageurl-go v0.1.0
 	github.com/recoilme/pudge v1.0.3
 	github.com/shopspring/decimal v1.2.0
 	github.com/sirupsen/logrus v1.6.0

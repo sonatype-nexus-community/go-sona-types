@@ -27,8 +27,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/DarthHater/packageurl-go"
 	"github.com/briandowns/spinner"
-	"github.com/package-url/packageurl-go"
 	"github.com/sirupsen/logrus"
 	"github.com/sonatype-nexus-community/go-sona-types/cyclonedx"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex"

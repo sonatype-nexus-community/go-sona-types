@@ -20,8 +20,8 @@ package cyclonedx
 import (
 	"testing"
 
+	"github.com/DarthHater/packageurl-go"
 	"github.com/beevik/etree"
-	"github.com/package-url/packageurl-go"
 	"github.com/shopspring/decimal"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex/types"

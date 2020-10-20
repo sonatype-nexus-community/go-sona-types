@@ -26,7 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex/types"
 
-	"github.com/package-url/packageurl-go"
+	"github.com/DarthHater/packageurl-go"
 )
 
 // CycloneDX Types

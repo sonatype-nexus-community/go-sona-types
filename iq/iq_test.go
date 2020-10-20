@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/package-url/packageurl-go"
+	"github.com/DarthHater/packageurl-go"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex"
 
 	"github.com/jarcoal/httpmock"
