@@ -239,9 +239,12 @@ func (c *CycloneDX) processPackageURLsAndSha1sIntoSBOMSchema1_1(results []packag
 		component := Component{
 			Type:    "library",
 			BomRef:  v.ToString(),
-			Purl:    v.ToString(),
 			Name:    v.Name,
 			Version: v.Version,
+		}
+
+		if v.Type != "pypi" {
+			component.Purl = v.ToString()
 		}
 
 		sbom.Components.Component = append(sbom.Components.Component, component)
