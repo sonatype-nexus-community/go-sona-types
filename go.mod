@@ -3,7 +3,7 @@ module github.com/sonatype-nexus-community/go-sona-types
 go 1.14
 
 require (
-	github.com/DarthHater/packageurl-go v0.1.1-0.20201020202434-0e5a2acb1446
+	github.com/DarthHater/packageurl-go v0.1.1-0.20201022013050-2ab9db397c59
 	github.com/beevik/etree v1.1.0
 	github.com/briandowns/spinner v1.11.1
 	github.com/jarcoal/httpmock v1.0.5

@@ -1,5 +1,7 @@
 github.com/DarthHater/packageurl-go v0.1.1-0.20201020202434-0e5a2acb1446 h1:3x8UJQ7X4ncci6D+bAWpoT5gmQgIoL5EzWOTtSZYYIo=
 github.com/DarthHater/packageurl-go v0.1.1-0.20201020202434-0e5a2acb1446/go.mod h1:/FxmOTaQ5RifcIAsSQwhXw6wOBmSi3QALI9b0M8gMnQ=
+github.com/DarthHater/packageurl-go v0.1.1-0.20201022013050-2ab9db397c59 h1:bWN4GMTxAI4v3I412SPfXJ4Zp29zk3I6kTpwV15egMU=
+github.com/DarthHater/packageurl-go v0.1.1-0.20201022013050-2ab9db397c59/go.mod h1:/FxmOTaQ5RifcIAsSQwhXw6wOBmSi3QALI9b0M8gMnQ=
 github.com/beevik/etree v1.1.0 h1:T0xke/WvNtMoCqgzPhkX2r4rjY3GDZFi+FjpRZY2Jbs=
 github.com/beevik/etree v1.1.0/go.mod h1:r8Aw8JqVegEf0w2fDnATrX9VpkMcyFeM0FhwO62wh+A=
 github.com/briandowns/spinner v1.11.1 h1:OixPqDEcX3juo5AjQZAnFPbeUA0jvkp2qzB5gOZJ/L0=
