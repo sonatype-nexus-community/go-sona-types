@@ -243,9 +243,7 @@ func (c *CycloneDX) processPackageURLsAndSha1sIntoSBOMSchema1_1(results []packag
 			Version: v.Version,
 		}
 
-		if v.Type != "pypi" {
-			component.Purl = v.ToString()
-		}
+		component.Purl = v.ToString()
 
 		sbom.Components.Component = append(sbom.Components.Component, component)
 	}
