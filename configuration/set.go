@@ -132,7 +132,7 @@ func (i *ConfigSet) getAndSetIQConfig(reader *bufio.Reader) (err error) {
 		warnUserOfBadLifeChoices()
 		fmt.Print("[y/N]? ")
 		theChoice, _ := reader.ReadString('\n')
-		theChoice = emptyOrDefault(theChoice, "y")
+		theChoice = emptyOrDefault(theChoice, "N")
 		if theChoice == "y" {
 			i.logLady.Info("User chose to rectify their bad life choices, asking for config again")
 			err = i.getAndSetIQConfig(reader)

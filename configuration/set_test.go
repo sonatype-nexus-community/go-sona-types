@@ -129,6 +129,32 @@ func TestGetConfigFromCommandLineIqServer(t *testing.T) {
 	verifyYamlLine(t, content, ViperKeyIQToken, "admin123")
 }
 
+func TestGetConfigFromCommandLineIqServerRectifyBadChoicesDefault(t *testing.T) {
+	var buffer bytes.Buffer
+	buffer.Write([]byte("iq\nhttp://localhost:8070\nadmin\nadmin123\n\n"))
+
+	configSet = setup(t)
+	err := configSet.GetConfigFromCommandLine(&buffer)
+	if err != nil {
+		t.Errorf("Test failed: %s", err.Error())
+	}
+
+	b, err := ioutil.ReadFile(configSet.ConfigLocation)
+	if err != nil {
+		t.Errorf("Test failed: %s", err.Error())
+	}
+
+	var confMarshallIq ConfMarshallIq
+	err = yaml.Unmarshal(b, &confMarshallIq)
+	if err != nil {
+		t.Errorf("Test failed: %s", err.Error())
+	}
+
+	if confMarshallIq.Iq.IQUsername != "admin" && confMarshallIq.Iq.IQToken != "admin123" && confMarshallIq.Iq.IQServer != "http://localhost:8070" {
+		t.Errorf("Config not set properly, expected 'admin', 'admin123' and 'http://localhost:8070' but got %s, %s and %s", confMarshallIq.Iq.IQUsername, confMarshallIq.Iq.IQToken, confMarshallIq.Iq.IQServer)
+	}
+}
+
 func TestGetConfigFromCommandLineIqServerWithLoopToResetConfig(t *testing.T) {
 	var buffer bytes.Buffer
 	buffer.Write([]byte("iq\nhttp://localhost:8070\nadmin\nadmin123\ny\nhttp://localhost:8080\nadmin1\nadmin1234\n"))
