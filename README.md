@@ -17,6 +17,11 @@ You'll need Go 1.14, and that's about it!
 
 Everything (tests, lint, etc...) can be run with `make` locally.
 
+Adding new files? Get the license header correct with:
+
+> go get -u github.com/google/addlicense
+> addlicense -v -f ./header.txt .
+
 ### Usage
 
 This section is only created for suggested use of each package.
