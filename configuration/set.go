@@ -27,6 +27,9 @@ import (
 	"strings"
 )
 
+// For use when overriding Viper config type, e.g.: viper.SetConfigType(ConfigTypeYaml)
+const ConfigTypeYaml = "yaml"
+
 // these consts must match their associated yaml tag below. for use where tag name matters, like viper
 const ViperKeyUsername = "ossi.Username"
 const ViperKeyToken = "ossi.Token"
