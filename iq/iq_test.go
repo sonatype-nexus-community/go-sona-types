@@ -25,10 +25,7 @@ import (
 	"testing"
 	"time"
 
-<<<<<<< HEAD
 	"github.com/DarthHater/packageurl-go"
-=======
->>>>>>> origin/master
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex"
 
 	"github.com/jarcoal/httpmock"
