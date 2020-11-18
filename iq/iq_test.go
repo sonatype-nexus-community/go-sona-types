@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/package-url/packageurl-go"
+	"github.com/sonatype-nexus-community/go-sona-types/cyclonedx"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex"
 
 	"github.com/jarcoal/httpmock"
@@ -144,6 +146,40 @@ func TestAuditPackages(t *testing.T) {
 	iq := setupIQServer(t)
 
 	result, _ := iq.AuditPackages(purls)
+
+	statusExpected := StatusURLResult{PolicyAction: "None", ReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e", IsError: false}
+
+	assert.Equal(t, result, statusExpected)
+}
+
+func TestAuditPackagesWithSBOM(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/applications?publicId=testapp",
+		httpmock.NewStringResponder(200, applicationsResponse))
+
+	httpmock.RegisterResponder("POST", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/sources/nancy?stageId=develop",
+		httpmock.NewStringResponder(202, thirdPartyAPIResultJSON))
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/status/9cee2b6366fc4d328edc318eae46b2cb",
+		httpmock.NewStringResponder(200, pollingResult))
+
+	var purls []packageurl.PackageURL
+	var purl packageurl.PackageURL
+	purl, _ = packageurl.FromString("pkg:golang/github.com/go-yaml/yaml@v2.2.2")
+	purls = append(purls, purl)
+	purl, _ = packageurl.FromString("pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
+	purls = append(purls, purl)
+
+	logger, _ := test.NewNullLogger()
+	dx := cyclonedx.Default(logger)
+
+	sbom := dx.FromPackageURLs(purls)
+
+	iq := setupIQServer(t)
+
+	result, _ := iq.AuditWithSbom(sbom)
 
 	statusExpected := StatusURLResult{PolicyAction: "None", ReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e", IsError: false}
 
