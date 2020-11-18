@@ -150,6 +150,7 @@ func (i *ServerErrorMissingLicense) Error() string {
 
 // IServer is an interface that can be used for mocking the Server struct
 type IServer interface {
+	Audit(p []packageurl.PackageURL, f []cyclonedx.File) (StatusURLResult, error)
 	AuditPackages(p []string) (StatusURLResult, error)
 }
 
