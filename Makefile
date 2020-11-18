@@ -22,8 +22,6 @@ ci-lint:
 clean:
 	$(GOCLEAN)
 	rm -rf .cache
-	rm -f $(BINARY_NAME)
-	rm -f $(BINARY_NAME)-*amd64*
 
 deps:
 	$(GOCMD) mod download
