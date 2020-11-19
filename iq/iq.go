@@ -91,6 +91,7 @@ func (i *ServerErrorMissingLicense) Error() string {
 
 // IServer is an interface that can be used for mocking the Server struct
 type IServer interface {
+	AuditWithSbom(s string) (StatusURLResult, error)
 	AuditPackages(p []string) (StatusURLResult, error)
 }
 
@@ -188,6 +189,28 @@ func validateRequiredOption(options Options, optionName string) (err error) {
 	return
 }
 
+// AuditWithSbom accepts an sbom string, and will submit this to
+// Nexus IQ Server for audit, and return a struct of StatusURLResult
+func (i *Server) AuditWithSbom(sbom string) (StatusURLResult, error) {
+	i.logLady.WithFields(logrus.Fields{
+		"sbom":           sbom,
+		"application_id": i.Options.Application,
+	}).Info("Beginning audit with IQ using provided SBOM")
+
+	if i.Options.User == "admin" && i.Options.Token == "admin123" {
+		i.logLady.Info("Warning user of questionable life choices related to username and password")
+		warnUserOfBadLifeChoices()
+	}
+
+	internalID, err := i.getInternalApplicationID(i.Options.Application)
+	if internalID == "" && err != nil {
+		i.logLady.Error("Internal ID not obtained from Nexus IQ")
+		return statusURLResp, err
+	}
+
+	return i.audit(sbom, internalID)
+}
+
 // AuditPackages accepts a slice of purls, and configuration, and will submit these to
 // Nexus IQ Server for audit, and return a struct of StatusURLResult
 func (i *Server) AuditPackages(purls []string) (StatusURLResult, error) {
@@ -229,6 +252,10 @@ func (i *Server) AuditPackages(purls []string) (StatusURLResult, error) {
 	sbom := dx.FromCoordinates(resultsFromOssIndex)
 	i.logLady.WithField("sbom", sbom).Debug("Obtained cyclonedx SBOM")
 
+	return i.audit(sbom, internalID)
+}
+
+func (i *Server) audit(sbom string, internalID string) (StatusURLResult, error) {
 	i.logLady.WithFields(logrus.Fields{
 		"internal_id": internalID,
 		"sbom":        sbom,
