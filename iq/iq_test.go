@@ -146,24 +146,24 @@ func Test_audit_WithStatusUnmarshalError(t *testing.T) {
 	assert.Equal(t, StatusURLResult{}, result)
 }
 
-//func Test_audit_WithLoop(t *testing.T) {
-//	httpmock.Activate()
-//	defer httpmock.DeactivateAndReset()
-//
-//	httpmock.RegisterResponder("POST", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/sources/nancy?stageId=develop",
-//		httpmock.NewStringResponder(202, thirdPartyAPIResultJSON))
-//
-//	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/status/9cee2b6366fc4d328edc318eae46b2cb",
-//		httpmock.NewStringResponder(202, ""))
-//
-//	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/status/9cee2b6366fc4d328edc318eae46b2cb",
-//		httpmock.NewStringResponder(200, pollingResult))
-//
-//	iq := setupIQServer(t)
-//	result, err := iq.audit("", "4bb67dcfc86344e3a483832f8c496419")
-//	assert.Nil(t, err)
-//	assert.Equal(t, StatusURLResult{PolicyAction: "None"}, result)
-//}
+func Test_audit_WithPollCountMaxExceeded(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("POST", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/sources/nancy?stageId=develop",
+		httpmock.NewStringResponder(202, thirdPartyAPIResultJSON))
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/status/9cee2b6366fc4d328edc318eae46b2cb",
+		httpmock.NewStringResponder(404, "").Times(3))
+
+	iq := setupIQServer(t)
+	iq.Options.MaxRetries = 2
+	result, err := iq.audit("", "4bb67dcfc86344e3a483832f8c496419")
+	assert.Error(t, err)
+	assert.Equal(t, "exceeded max retries: 2", err.Error())
+	assert.Equal(t, StatusURLResult{}, result)
+	assert.Equal(t, 3, iq.tries)
+}
 
 func Test_populateAbsoluteURL(t *testing.T) {
 	iq := setupIQServer(t)

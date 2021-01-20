@@ -458,8 +458,10 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 		"status_url":     statusURL,
 	}).Trace("Polling Nexus IQ for response")
 	if i.tries > i.Options.MaxRetries {
-		i.logLady.Error("Maximum tries exceeded, finished polling, consider bumping up Max Retries")
-		finished <- resultError{finished: true, err: nil}
+		i.logLady.WithField("retries", i.Options.MaxRetries).Error("Maximum tries exceeded, finished polling, consider bumping up Max Retries")
+		err := fmt.Errorf("exceeded max retries: %d", i.Options.MaxRetries)
+		finished <- resultError{finished: true, err: err}
+		return &ServerError{Err: err, Message: "exceeded max retries"}
 	}
 
 	client := &http.Client{}
