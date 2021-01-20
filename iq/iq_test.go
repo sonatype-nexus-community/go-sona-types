@@ -74,15 +74,6 @@ const pollingResultRelative = `{
 	"isError": false
 }`
 
-//const pollingResultNotReady = `{
-//	"policyAction": "None",
-//	"reportHtmlUrl": "ui/links/application/test-app/report/95c4c14e",
-//	"reportPdfUrl": "ui/links/application/test-app/report/95c4c14e/pdf",
-//	"reportDataUrl": "api/v2/applications/test-app/reports/95c4c14e/raw",
-//	"embeddableReportHtmlUrl": "ui/links/application/test-app/report/95c4c14e/embeddable",
-//	"isError": false
-//}`
-
 func setupIqOptions() (options Options) {
 	options.Application = "testapp"
 	options.Server = "http://sillyplace.com:8090"
