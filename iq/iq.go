@@ -50,8 +50,13 @@ type StatusURLResult struct {
 }
 
 // Valid policy action values
+//goland:noinspection GoUnusedConst
 const PolicyActionNone = "None"
+
+//goland:noinspection GoUnusedConst
 const PolicyActionWarning = "Warning"
+
+//goland:noinspection GoUnusedConst
 const PolicyActionFailure = "Failure"
 
 // Internal types for use by this package, don't need to expose them
