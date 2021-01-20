@@ -64,6 +64,16 @@ const pollingResult = `{
 	"isError": false
 }`
 
+// since IQ 104
+const pollingResultRelative = `{
+	"policyAction": "None",
+	"reportHtmlUrl": "ui/links/application/test-app/report/95c4c14e",
+	"reportPdfUrl": "ui/links/application/test-app/report/95c4c14e/pdf",
+	"reportDataUrl": "api/v2/applications/test-app/reports/95c4c14e/raw",
+	"embeddableReportHtmlUrl": "ui/links/application/test-app/report/95c4c14e/embeddable",
+	"isError": false
+}`
+
 func setupIqOptions() (options Options) {
 	options.Application = "testapp"
 	options.Server = "http://sillyplace.com:8090"
@@ -110,6 +120,54 @@ func TestNewRequiredAndModifiedOptions(t *testing.T) {
 	assert.Equal(t, server.Options.Server, "myServer")
 }
 
+func Test_audit_WithStatusUnmarshalError(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("POST", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/sources/nancy?stageId=develop",
+		httpmock.NewStringResponder(202, thirdPartyAPIResultJSON))
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/status/9cee2b6366fc4d328edc318eae46b2cb",
+		httpmock.NewStringResponder(200, pollingResult+"bogusResponseData"))
+
+	iq := setupIQServer(t)
+	result, err := iq.audit("", "4bb67dcfc86344e3a483832f8c496419")
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "Could not unmarshal response from IQ server"))
+	assert.Equal(t, StatusURLResult{}, result)
+}
+
+func Test_populateAbsoluteURL(t *testing.T) {
+	iq := setupIQServer(t)
+
+	// defaults, just for completeness
+	iq.populateAbsoluteURL()
+	assert.Equal(t, "http://sillyplace.com:8090/", statusURLResp.AbsoluteReportHTMLURL)
+
+	// slash prefix on relative url
+	statusURLResp.ReportHTMLURL = "/myReport"
+	iq.populateAbsoluteURL()
+	assert.Equal(t, "http://sillyplace.com:8090/myReport", statusURLResp.AbsoluteReportHTMLURL)
+
+	// slash suffix on server url
+	iq.Options.Server = "http://sillyplace.com:8090/"
+	statusURLResp.ReportHTMLURL = "myReport"
+	iq.populateAbsoluteURL()
+	assert.Equal(t, "http://sillyplace.com:8090/myReport", statusURLResp.AbsoluteReportHTMLURL)
+
+	// slashes everywhere - we don't avoid double slash-ery
+	iq.Options.Server = "http://sillyplace.com:8090/"
+	statusURLResp.ReportHTMLURL = "/myReport"
+	iq.populateAbsoluteURL()
+	assert.Equal(t, "http://sillyplace.com:8090//myReport", statusURLResp.AbsoluteReportHTMLURL)
+
+	// no slashes anywhere
+	iq.Options.Server = "http://sillyplace.com:8090"
+	statusURLResp.ReportHTMLURL = "myReport"
+	iq.populateAbsoluteURL()
+	assert.Equal(t, "http://sillyplace.com:8090/myReport", statusURLResp.AbsoluteReportHTMLURL)
+}
+
 func TestAuditPackages(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -147,9 +205,57 @@ func TestAuditPackages(t *testing.T) {
 
 	result, _ := iq.AuditPackages(purls)
 
-	statusExpected := StatusURLResult{PolicyAction: "None", ReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e", IsError: false}
+	statusExpected := StatusURLResult{PolicyAction: "None",
+		ReportHTMLURL:         "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e",
+		AbsoluteReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e",
+	}
 
-	assert.Equal(t, result, statusExpected)
+	assert.Equal(t, statusExpected, result)
+}
+
+func TestAuditPackagesRelativeResult(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	jsonCoordinates, _ := json.Marshal([]types.Coordinate{
+		{
+			Coordinates:     "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2",
+			Reference:       "https://ossindex.sonatype.org/component/pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2",
+			Vulnerabilities: []types.Vulnerability{},
+		},
+		{
+			Coordinates:     "pkg:golang/github.com/go-yaml/yaml@v2.2.2",
+			Reference:       "https://ossindex.sonatype.org/component/pkg:golang/github.com/go-yaml/yaml@v2.2.2",
+			Vulnerabilities: []types.Vulnerability{},
+		},
+	})
+
+	httpmock.RegisterResponder("POST", "https://ossindex.sonatype.org/api/v3/component-report",
+		httpmock.NewStringResponder(200, string(jsonCoordinates)))
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/applications?publicId=testapp",
+		httpmock.NewStringResponder(200, applicationsResponse))
+
+	httpmock.RegisterResponder("POST", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/sources/nancy?stageId=develop",
+		httpmock.NewStringResponder(202, thirdPartyAPIResultJSON))
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/status/9cee2b6366fc4d328edc318eae46b2cb",
+		httpmock.NewStringResponder(200, pollingResultRelative))
+
+	var purls []string
+	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
+	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
+
+	iq := setupIQServer(t)
+
+	result, _ := iq.AuditPackages(purls)
+
+	statusExpected := StatusURLResult{PolicyAction: "None",
+		ReportHTMLURL:         "ui/links/application/test-app/report/95c4c14e",
+		AbsoluteReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e",
+	}
+
+	assert.Equal(t, statusExpected, result)
 }
 
 func TestAuditPackagesWithSBOM(t *testing.T) {
@@ -181,7 +287,10 @@ func TestAuditPackagesWithSBOM(t *testing.T) {
 
 	result, _ := iq.AuditWithSbom(sbom)
 
-	statusExpected := StatusURLResult{PolicyAction: "None", ReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e", IsError: false}
+	statusExpected := StatusURLResult{PolicyAction: "None",
+		ReportHTMLURL:         "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e",
+		AbsoluteReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e",
+	}
 
 	assert.Equal(t, result, statusExpected)
 }

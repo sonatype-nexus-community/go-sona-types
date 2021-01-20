@@ -42,10 +42,11 @@ const thirdPartyAPIRight = "/sources/nancy?stageId="
 
 // StatusURLResult is a struct to let the consumer know what the response from Nexus IQ Server was
 type StatusURLResult struct {
-	PolicyAction  string `json:"policyAction"`
-	ReportHTMLURL string `json:"reportHtmlUrl"`
-	IsError       bool   `json:"isError"`
-	ErrorMessage  string `json:"errorMessage"`
+	PolicyAction          string `json:"policyAction"`
+	ReportHTMLURL         string `json:"reportHtmlUrl"`
+	AbsoluteReportHTMLURL string `json:"-"`
+	IsError               bool   `json:"isError"`
+	ErrorMessage          string `json:"errorMessage"`
 }
 
 // Internal types for use by this package, don't need to expose them
@@ -278,16 +279,16 @@ func (i *Server) audit(sbom string, internalID string) (StatusURLResult, error) 
 	statusURLResp = StatusURLResult{}
 
 	finishedChan := make(chan resultError)
-	defer close(finishedChan)
 
 	go func() resultError {
+		defer close(finishedChan)
 		for {
 			select {
 			case <-finishedChan:
 				return resultError{finished: true}
 			default:
-				if err = i.pollIQServer(fmt.Sprintf("%s/%s", i.Options.Server, statusURL), finishedChan); err != nil {
-					return resultError{finished: false, err: err}
+				if errPoll := i.pollIQServer(fmt.Sprintf("%s/%s", i.Options.Server, statusURL), finishedChan); errPoll != nil {
+					finishedChan <- resultError{finished: false, err: errPoll}
 				}
 				time.Sleep(i.Options.PollInterval)
 			}
@@ -506,11 +507,31 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 		if response.IsError {
 			finished <- resultError{finished: true, err: nil}
 		}
+
+		i.populateAbsoluteURL()
 		finished <- resultError{finished: true, err: nil}
 	}
 	i.tries++
 	fmt.Print(".")
 	return err
+}
+
+func (i *Server) populateAbsoluteURL() {
+	if !strings.HasPrefix(statusURLResp.ReportHTMLURL, i.Options.Server) {
+		// newer versions of IQ use relative urls
+
+		iqServerUrl := i.Options.Server
+		// slash madness
+		var pathSlash string
+		if strings.HasPrefix(statusURLResp.ReportHTMLURL, "/") || strings.HasSuffix(iqServerUrl, "/") {
+			pathSlash = ""
+		} else {
+			pathSlash = "/"
+		}
+		statusURLResp.AbsoluteReportHTMLURL = iqServerUrl + pathSlash + statusURLResp.ReportHTMLURL
+	} else {
+		statusURLResp.AbsoluteReportHTMLURL = statusURLResp.ReportHTMLURL
+	}
 }
 
 func warnUserOfBadLifeChoices() {
