@@ -74,6 +74,15 @@ const pollingResultRelative = `{
 	"isError": false
 }`
 
+//const pollingResultNotReady = `{
+//	"policyAction": "None",
+//	"reportHtmlUrl": "ui/links/application/test-app/report/95c4c14e",
+//	"reportPdfUrl": "ui/links/application/test-app/report/95c4c14e/pdf",
+//	"reportDataUrl": "api/v2/applications/test-app/reports/95c4c14e/raw",
+//	"embeddableReportHtmlUrl": "ui/links/application/test-app/report/95c4c14e/embeddable",
+//	"isError": false
+//}`
+
 func setupIqOptions() (options Options) {
 	options.Application = "testapp"
 	options.Server = "http://sillyplace.com:8090"
@@ -136,6 +145,25 @@ func Test_audit_WithStatusUnmarshalError(t *testing.T) {
 	assert.True(t, strings.Contains(err.Error(), "Could not unmarshal response from IQ server"))
 	assert.Equal(t, StatusURLResult{}, result)
 }
+
+//func Test_audit_WithLoop(t *testing.T) {
+//	httpmock.Activate()
+//	defer httpmock.DeactivateAndReset()
+//
+//	httpmock.RegisterResponder("POST", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/sources/nancy?stageId=develop",
+//		httpmock.NewStringResponder(202, thirdPartyAPIResultJSON))
+//
+//	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/status/9cee2b6366fc4d328edc318eae46b2cb",
+//		httpmock.NewStringResponder(202, ""))
+//
+//	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/status/9cee2b6366fc4d328edc318eae46b2cb",
+//		httpmock.NewStringResponder(200, pollingResult))
+//
+//	iq := setupIQServer(t)
+//	result, err := iq.audit("", "4bb67dcfc86344e3a483832f8c496419")
+//	assert.Nil(t, err)
+//	assert.Equal(t, StatusURLResult{PolicyAction: "None"}, result)
+//}
 
 func Test_populateAbsoluteURL(t *testing.T) {
 	iq := setupIQServer(t)

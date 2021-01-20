@@ -280,16 +280,18 @@ func (i *Server) audit(sbom string, internalID string) (StatusURLResult, error) 
 
 	finishedChan := make(chan resultError)
 
-	go func() resultError {
+	go func() {
 		defer close(finishedChan)
 		for {
 			select {
 			case <-finishedChan:
-				return resultError{finished: true}
+				return
 			default:
 				if errPoll := i.pollIQServer(fmt.Sprintf("%s/%s", i.Options.Server, statusURL), finishedChan); errPoll != nil {
-					finishedChan <- resultError{finished: false, err: errPoll}
+					finishedChan <- resultError{finished: true, err: errPoll}
+					return
 				}
+				i.logLady.Trace("waiting to poll Nexus IQ")
 				time.Sleep(i.Options.PollInterval)
 			}
 		}
@@ -486,6 +488,10 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 	//noinspection GoUnhandledErrorResult
 	defer resp.Body.Close()
 
+	i.logLady.WithFields(logrus.Fields{
+		"resp.StatusCode": resp.StatusCode,
+	}).Trace("Nexus IQ polling status")
+
 	if resp.StatusCode == http.StatusOK {
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -503,6 +509,11 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 				Message: "Could not unmarshal response from IQ server",
 			}
 		}
+
+		i.logLady.WithFields(logrus.Fields{
+			"response": response,
+		}).Trace("Nexus IQ polling response")
+
 		statusURLResp = response
 		if response.IsError {
 			finished <- resultError{finished: true, err: nil}
