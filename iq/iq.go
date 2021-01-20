@@ -50,7 +50,6 @@ type StatusURLResult struct {
 }
 
 // Valid policy action values
-//goland:noinspection GoUnusedConst
 const PolicyActionNone = "None"
 
 //goland:noinspection GoUnusedConst
