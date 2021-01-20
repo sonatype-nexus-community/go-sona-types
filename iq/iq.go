@@ -49,6 +49,11 @@ type StatusURLResult struct {
 	ErrorMessage          string `json:"errorMessage"`
 }
 
+// Valid policy action values
+const PolicyActionNone = "None"
+const PolicyActionWarning = "Warning"
+const PolicyActionFailure = "Failure"
+
 // Internal types for use by this package, don't need to expose them
 type applicationResponse struct {
 	Applications []application `json:"applications"`
