@@ -531,7 +531,7 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 
 func (i *Server) populateAbsoluteURL() {
 	if !strings.HasPrefix(statusURLResp.ReportHTMLURL, i.Options.Server) {
-		// newer versions of IQ use relative urls
+		// newer versions of IQ (104+) use relative urls
 
 		iqServerUrl := i.Options.Server
 		// slash madness
