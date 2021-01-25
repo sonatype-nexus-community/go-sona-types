@@ -160,30 +160,30 @@ func Test_populateAbsoluteURL(t *testing.T) {
 	iq := setupIQServer(t)
 
 	// defaults, just for completeness
-	iq.populateAbsoluteURL()
+	statusURLResp.populateAbsoluteURL(iq.Options.Server)
 	assert.Equal(t, "http://sillyplace.com:8090/", statusURLResp.AbsoluteReportHTMLURL)
 
 	// slash prefix on relative url
 	statusURLResp.ReportHTMLURL = "/myReport"
-	iq.populateAbsoluteURL()
+	statusURLResp.populateAbsoluteURL(iq.Options.Server)
 	assert.Equal(t, "http://sillyplace.com:8090/myReport", statusURLResp.AbsoluteReportHTMLURL)
 
 	// slash suffix on server url
 	iq.Options.Server = "http://sillyplace.com:8090/"
 	statusURLResp.ReportHTMLURL = "myReport"
-	iq.populateAbsoluteURL()
+	statusURLResp.populateAbsoluteURL(iq.Options.Server)
 	assert.Equal(t, "http://sillyplace.com:8090/myReport", statusURLResp.AbsoluteReportHTMLURL)
 
 	// slashes everywhere - we don't avoid double slash-ery
 	iq.Options.Server = "http://sillyplace.com:8090/"
 	statusURLResp.ReportHTMLURL = "/myReport"
-	iq.populateAbsoluteURL()
+	statusURLResp.populateAbsoluteURL(iq.Options.Server)
 	assert.Equal(t, "http://sillyplace.com:8090//myReport", statusURLResp.AbsoluteReportHTMLURL)
 
 	// no slashes anywhere
 	iq.Options.Server = "http://sillyplace.com:8090"
 	statusURLResp.ReportHTMLURL = "myReport"
-	iq.populateAbsoluteURL()
+	statusURLResp.populateAbsoluteURL(iq.Options.Server)
 	assert.Equal(t, "http://sillyplace.com:8090/myReport", statusURLResp.AbsoluteReportHTMLURL)
 }
 

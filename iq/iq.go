@@ -530,7 +530,7 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 			finished <- resultError{finished: true, err: nil}
 		}
 
-		i.populateAbsoluteURL()
+		statusURLResp.populateAbsoluteURL(i.Options.Server)
 		finished <- resultError{finished: true, err: nil}
 	}
 	i.tries++
@@ -538,19 +538,18 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 	return err
 }
 
-func (i *Server) populateAbsoluteURL() {
-	if !strings.HasPrefix(statusURLResp.ReportHTMLURL, i.Options.Server) {
+func (i *StatusURLResult) populateAbsoluteURL(iqServerBaseURL string) {
+	if !strings.HasPrefix(statusURLResp.ReportHTMLURL, iqServerBaseURL) {
 		// newer versions of IQ (104+) use relative urls
 
-		iqServerUrl := i.Options.Server
 		// slash madness
 		var pathSlash string
-		if strings.HasPrefix(statusURLResp.ReportHTMLURL, "/") || strings.HasSuffix(iqServerUrl, "/") {
+		if strings.HasPrefix(statusURLResp.ReportHTMLURL, "/") || strings.HasSuffix(iqServerBaseURL, "/") {
 			pathSlash = ""
 		} else {
 			pathSlash = "/"
 		}
-		statusURLResp.AbsoluteReportHTMLURL = iqServerUrl + pathSlash + statusURLResp.ReportHTMLURL
+		statusURLResp.AbsoluteReportHTMLURL = iqServerBaseURL + pathSlash + statusURLResp.ReportHTMLURL
 	} else {
 		statusURLResp.AbsoluteReportHTMLURL = statusURLResp.ReportHTMLURL
 	}
