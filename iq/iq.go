@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strings"
 	"time"
@@ -539,20 +540,15 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 }
 
 func (i *StatusURLResult) populateAbsoluteURL(iqServerBaseURL string) {
-	if !strings.HasPrefix(statusURLResp.ReportHTMLURL, iqServerBaseURL) {
-		// newer versions of IQ (104+) use relative urls
-
-		// slash madness
-		var pathSlash string
-		if strings.HasPrefix(statusURLResp.ReportHTMLURL, "/") || strings.HasSuffix(iqServerBaseURL, "/") {
-			pathSlash = ""
-		} else {
-			pathSlash = "/"
-		}
-		statusURLResp.AbsoluteReportHTMLURL = iqServerBaseURL + pathSlash + statusURLResp.ReportHTMLURL
-	} else {
-		statusURLResp.AbsoluteReportHTMLURL = statusURLResp.ReportHTMLURL
+	parsedReportURL, _ := url.Parse(statusURLResp.ReportHTMLURL)
+	if parsedReportURL.IsAbs() {
+		statusURLResp.AbsoluteReportHTMLURL = parsedReportURL.String()
+		return
 	}
+	statusURLResp.AbsoluteReportHTMLURL =
+		strings.TrimRight(iqServerBaseURL, "/") +
+			"/" +
+			strings.TrimLeft(parsedReportURL.Path, "/")
 }
 
 func warnUserOfBadLifeChoices() {

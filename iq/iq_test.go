@@ -178,13 +178,31 @@ func Test_populateAbsoluteURL(t *testing.T) {
 	iq.Options.Server = "http://sillyplace.com:8090/"
 	statusURLResp.ReportHTMLURL = "/myReport"
 	statusURLResp.populateAbsoluteURL(iq.Options.Server)
-	assert.Equal(t, "http://sillyplace.com:8090//myReport", statusURLResp.AbsoluteReportHTMLURL)
+	assert.Equal(t, "http://sillyplace.com:8090/myReport", statusURLResp.AbsoluteReportHTMLURL)
 
 	// no slashes anywhere
 	iq.Options.Server = "http://sillyplace.com:8090"
 	statusURLResp.ReportHTMLURL = "myReport"
 	statusURLResp.populateAbsoluteURL(iq.Options.Server)
 	assert.Equal(t, "http://sillyplace.com:8090/myReport", statusURLResp.AbsoluteReportHTMLURL)
+
+	// absolute report url (the way it looks prior to iq 104+)
+	iq.Options.Server = "http://sillyplace.com:8090"
+	statusURLResp.ReportHTMLURL = "http://sillyplace.com:8090/myReport"
+	statusURLResp.populateAbsoluteURL(iq.Options.Server)
+	assert.Equal(t, "http://sillyplace.com:8090/myReport", statusURLResp.AbsoluteReportHTMLURL)
+
+	// oh the emptiness
+	iq.Options.Server = ""
+	statusURLResp.ReportHTMLURL = ""
+	statusURLResp.populateAbsoluteURL(iq.Options.Server)
+	assert.Equal(t, "/", statusURLResp.AbsoluteReportHTMLURL)
+
+	// parent directory weirdness
+	iq.Options.Server = "http://sillyplace.com:8090/./../"
+	statusURLResp.ReportHTMLURL = "/../myReport"
+	statusURLResp.populateAbsoluteURL(iq.Options.Server)
+	assert.Equal(t, "http://sillyplace.com:8090/./../../myReport", statusURLResp.AbsoluteReportHTMLURL)
 }
 
 func TestAuditPackages(t *testing.T) {
