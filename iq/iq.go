@@ -51,17 +51,13 @@ type StatusURLResult struct {
 }
 
 // Valid policy action values
-type PolicyAction int
+type PolicyAction string
 
 const (
-	None PolicyAction = iota
-	Warning
-	Failure
+	None    = "None"
+	Warning = "Warning"
+	Failure = "Failure"
 )
-
-func (pa PolicyAction) String() string {
-	return [...]string{"None", "Warning", "Failure"}[pa]
-}
 
 // Internal types for use by this package, don't need to expose them
 type applicationResponse struct {
