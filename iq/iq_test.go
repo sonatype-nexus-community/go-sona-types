@@ -242,7 +242,7 @@ func TestAuditPackages(t *testing.T) {
 
 	result, _ := iq.AuditPackages(purls)
 
-	statusExpected := StatusURLResult{PolicyAction: PolicyActionNone,
+	statusExpected := StatusURLResult{PolicyAction: None.String(),
 		ReportHTMLURL:         "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e",
 		AbsoluteReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e",
 	}
@@ -287,7 +287,7 @@ func TestAuditPackagesRelativeResult(t *testing.T) {
 
 	result, _ := iq.AuditPackages(purls)
 
-	statusExpected := StatusURLResult{PolicyAction: PolicyActionNone,
+	statusExpected := StatusURLResult{PolicyAction: None.String(),
 		ReportHTMLURL:         "ui/links/application/test-app/report/95c4c14e",
 		AbsoluteReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e",
 	}
@@ -324,7 +324,7 @@ func TestAuditPackagesWithSBOM(t *testing.T) {
 
 	result, _ := iq.AuditWithSbom(sbom)
 
-	statusExpected := StatusURLResult{PolicyAction: PolicyActionNone,
+	statusExpected := StatusURLResult{PolicyAction: None.String(),
 		ReportHTMLURL:         "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e",
 		AbsoluteReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e",
 	}
@@ -545,6 +545,12 @@ func TestAuditPackagesIqUpButBadThirdPartyAPIResponse(t *testing.T) {
 	if err == nil {
 		t.Error("There is an error")
 	}
+}
+
+func TestPolicyActionEnum(t *testing.T) {
+	assert.Equal(t, "None", None.String())
+	assert.Equal(t, "Warning", Warning.String())
+	assert.Equal(t, "Failure", Failure.String())
 }
 
 func setupIQServer(t *testing.T) (server *Server) {

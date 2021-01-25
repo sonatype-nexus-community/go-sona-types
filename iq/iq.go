@@ -51,13 +51,17 @@ type StatusURLResult struct {
 }
 
 // Valid policy action values
-const PolicyActionNone = "None"
+type PolicyAction int
 
-//goland:noinspection GoUnusedConst
-const PolicyActionWarning = "Warning"
+const (
+	None PolicyAction = iota
+	Warning
+	Failure
+)
 
-//goland:noinspection GoUnusedConst
-const PolicyActionFailure = "Failure"
+func (pa PolicyAction) String() string {
+	return [...]string{"None", "Warning", "Failure"}[pa]
+}
 
 // Internal types for use by this package, don't need to expose them
 type applicationResponse struct {
