@@ -54,9 +54,9 @@ type StatusURLResult struct {
 type PolicyAction string
 
 const (
-	None    = "None"
-	Warning = "Warning"
-	Failure = "Failure"
+	PolicyActionNone    = "None"
+	PolicyActionWarning = "Warning"
+	PolicyActionFailure = "Failure"
 )
 
 // Internal types for use by this package, don't need to expose them
