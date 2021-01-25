@@ -51,8 +51,6 @@ type StatusURLResult struct {
 }
 
 // Valid policy action values
-type PolicyAction string
-
 const (
 	PolicyActionNone    = "None"
 	PolicyActionWarning = "Warning"
