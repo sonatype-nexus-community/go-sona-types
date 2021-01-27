@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strings"
 	"time"
@@ -42,11 +43,19 @@ const thirdPartyAPIRight = "/sources/nancy?stageId="
 
 // StatusURLResult is a struct to let the consumer know what the response from Nexus IQ Server was
 type StatusURLResult struct {
-	PolicyAction  string `json:"policyAction"`
-	ReportHTMLURL string `json:"reportHtmlUrl"`
-	IsError       bool   `json:"isError"`
-	ErrorMessage  string `json:"errorMessage"`
+	PolicyAction          string `json:"policyAction"`
+	ReportHTMLURL         string `json:"reportHtmlUrl"`
+	AbsoluteReportHTMLURL string `json:"-"`
+	IsError               bool   `json:"isError"`
+	ErrorMessage          string `json:"errorMessage"`
 }
+
+// Valid policy action values
+const (
+	PolicyActionNone    = "None"
+	PolicyActionWarning = "Warning"
+	PolicyActionFailure = "Failure"
+)
 
 // Internal types for use by this package, don't need to expose them
 type applicationResponse struct {
@@ -278,17 +287,19 @@ func (i *Server) audit(sbom string, internalID string) (StatusURLResult, error) 
 	statusURLResp = StatusURLResult{}
 
 	finishedChan := make(chan resultError)
-	defer close(finishedChan)
 
-	go func() resultError {
+	go func() {
+		defer close(finishedChan)
 		for {
 			select {
 			case <-finishedChan:
-				return resultError{finished: true}
+				return
 			default:
-				if err = i.pollIQServer(fmt.Sprintf("%s/%s", i.Options.Server, statusURL), finishedChan); err != nil {
-					return resultError{finished: false, err: err}
+				if errPoll := i.pollIQServer(fmt.Sprintf("%s/%s", i.Options.Server, statusURL), finishedChan); errPoll != nil {
+					finishedChan <- resultError{finished: true, err: errPoll}
+					return
 				}
+				i.logLady.Trace("waiting to poll Nexus IQ")
 				time.Sleep(i.Options.PollInterval)
 			}
 		}
@@ -455,8 +466,10 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 		"status_url":     statusURL,
 	}).Trace("Polling Nexus IQ for response")
 	if i.tries > i.Options.MaxRetries {
-		i.logLady.Error("Maximum tries exceeded, finished polling, consider bumping up Max Retries")
-		finished <- resultError{finished: true, err: nil}
+		i.logLady.WithField("retries", i.Options.MaxRetries).Error("Maximum tries exceeded, finished polling, consider bumping up Max Retries")
+		err := fmt.Errorf("exceeded max retries: %d", i.Options.MaxRetries)
+		finished <- resultError{finished: true, err: err}
+		return &ServerError{Err: err, Message: "exceeded max retries"}
 	}
 
 	client := &http.Client{}
@@ -485,6 +498,10 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 	//noinspection GoUnhandledErrorResult
 	defer resp.Body.Close()
 
+	i.logLady.WithFields(logrus.Fields{
+		"resp.StatusCode": resp.StatusCode,
+	}).Trace("Nexus IQ polling status")
+
 	if resp.StatusCode == http.StatusOK {
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -502,15 +519,34 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 				Message: "Could not unmarshal response from IQ server",
 			}
 		}
+
+		i.logLady.WithFields(logrus.Fields{
+			"response": response,
+		}).Trace("Nexus IQ polling response")
+
 		statusURLResp = response
 		if response.IsError {
 			finished <- resultError{finished: true, err: nil}
 		}
+
+		statusURLResp.populateAbsoluteURL(i.Options.Server)
 		finished <- resultError{finished: true, err: nil}
 	}
 	i.tries++
 	fmt.Print(".")
 	return err
+}
+
+func (i *StatusURLResult) populateAbsoluteURL(iqServerBaseURL string) {
+	parsedReportURL, _ := url.Parse(statusURLResp.ReportHTMLURL)
+	if parsedReportURL.IsAbs() {
+		statusURLResp.AbsoluteReportHTMLURL = parsedReportURL.String()
+		return
+	}
+	statusURLResp.AbsoluteReportHTMLURL =
+		strings.TrimRight(iqServerBaseURL, "/") +
+			"/" +
+			strings.TrimLeft(parsedReportURL.Path, "/")
 }
 
 func warnUserOfBadLifeChoices() {
