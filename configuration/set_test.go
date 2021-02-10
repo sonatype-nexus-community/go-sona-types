@@ -228,6 +228,7 @@ func TestSkipUpdateByDefault(t *testing.T) {
 	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "CI"))
 	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "JENKINS_HOME"))
 	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "GITHUB_ACTIONS"))
+	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "SKIP_UPDATE_CHECK"))
 }
 
 func verifyEnvVarAffectsSkipUpdate(t *testing.T, eVarCI *EnvVarTuple) {
