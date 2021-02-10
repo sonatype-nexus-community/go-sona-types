@@ -41,7 +41,7 @@ func CheckIfGitHub() bool {
 	return s != ""
 }
 
-// This TestEnvVar stuff below if intended for use only as testing utilities.
+// This TestEnvVar stuff below is intended for use only as testing utilities.
 // It lives here (under a private package) so it is accessible by test code in this project.
 type TestEnvVar struct {
 	t             *testing.T
