@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 )
@@ -179,4 +180,24 @@ func TestGetConfigFromCommandLineIqServerWithLoopToResetConfig(t *testing.T) {
 	if confMarshallIq.Iq.IQUsername != "admin1" && confMarshallIq.Iq.IQToken != "admin1234" && confMarshallIq.Iq.IQServer != "http://localhost:8080" {
 		t.Errorf("Config not set properly, expected 'admin1', 'admin1234' and 'http://localhost:8080' but got %s, %s and %s", confMarshallIq.Iq.IQUsername, confMarshallIq.Iq.IQToken, confMarshallIq.Iq.IQServer)
 	}
+}
+
+func TestSkipUpdateByDefault(t *testing.T) {
+	origCI, ciSet := os.LookupEnv("CI")
+	//origJenkins, jenkinsSet := os.LookupEnv("JENKINS")
+	defer func() {
+		if ciSet {
+			assert.Nil(t, os.Setenv("CI", origCI))
+		} else {
+			assert.Nil(t, os.Unsetenv("CI"))
+		}
+	}()
+
+	assert.Nil(t, os.Unsetenv("CI"))
+	assert.Equal(t, false, SkipUpdateByDefault())
+
+	assert.Nil(t, os.Setenv("CI", "true"))
+	assert.Equal(t, true, SkipUpdateByDefault())
+
+	// TODO Add tests for JENKINS_HOME and GITHUB_ACTIONS vars
 }
