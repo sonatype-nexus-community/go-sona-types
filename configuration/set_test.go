@@ -16,6 +16,7 @@ package configuration
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
@@ -182,22 +183,63 @@ func TestGetConfigFromCommandLineIqServerWithLoopToResetConfig(t *testing.T) {
 	}
 }
 
+type EnvVarTuple struct {
+	t             *testing.T
+	name          string
+	wasPresent    bool
+	originalValue string
+}
+
+func NewTestEnvVar(t *testing.T, name string) *EnvVarTuple {
+	if t == nil {
+		panic(fmt.Errorf("missing unit test reference"))
+	}
+	et := EnvVarTuple{}
+	et.t = t
+	if name == "" {
+		et.t.Errorf("missing environment variable name")
+	}
+	et.name = name
+	et.originalValue, et.wasPresent = os.LookupEnv(et.name)
+	return &et
+}
+
+func (et *EnvVarTuple) set(newValue string) {
+	if err := os.Setenv(et.name, newValue); err != nil {
+		et.t.Errorf("failed to set environment variable: %s to value: %s", et.name, newValue)
+	}
+}
+
+func (et *EnvVarTuple) unset() {
+	if err := os.Unsetenv(et.name); err != nil {
+		et.t.Errorf("failed to clear environment variable: %s", et.name)
+	}
+}
+
+func (et *EnvVarTuple) reset() {
+	if et.wasPresent {
+		et.set(et.originalValue)
+	} else {
+		et.unset()
+	}
+}
+
 func TestSkipUpdateByDefault(t *testing.T) {
-	origCI, ciSet := os.LookupEnv("CI")
-	//origJenkins, jenkinsSet := os.LookupEnv("JENKINS")
+	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "CI"))
+	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "JENKINS_HOME"))
+	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "GITHUB_ACTIONS"))
+}
+
+func verifyEnvVarAffectsSkipUpdate(t *testing.T, eVarCI *EnvVarTuple) {
 	defer func() {
-		if ciSet {
-			assert.Nil(t, os.Setenv("CI", origCI))
-		} else {
-			assert.Nil(t, os.Unsetenv("CI"))
-		}
+		eVarCI.reset()
 	}()
 
-	assert.Nil(t, os.Unsetenv("CI"))
-	assert.Equal(t, false, SkipUpdateByDefault())
+	eVarCI.unset()
+	assert.Equal(t, false, SkipUpdateByDefault(), eVarCI)
 
-	assert.Nil(t, os.Setenv("CI", "true"))
+	assert.Nil(t, os.Setenv(eVarCI.name, "true"))
+	eVarCI.set("true")
 	assert.Equal(t, true, SkipUpdateByDefault())
-
-	// TODO Add tests for JENKINS_HOME and GITHUB_ACTIONS vars
+	eVarCI.unset()
 }
