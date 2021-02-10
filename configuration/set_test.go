@@ -225,7 +225,12 @@ func (et *EnvVarTuple) reset() {
 }
 
 func TestSkipUpdateByDefault(t *testing.T) {
-	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "CI"))
+	envCI := NewTestEnvVar(t, "CI")
+	verifyEnvVarAffectsSkipUpdate(t, envCI)
+	// clear CI var so later tests can pass when running in our real CI environment. Chicken/Egg
+	envCI.unset()
+	defer envCI.reset()
+
 	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "JENKINS_HOME"))
 	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "GITHUB_ACTIONS"))
 	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "SKIP_UPDATE_CHECK"))
