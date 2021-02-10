@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/sonatype-nexus-community/go-sona-types/internal"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex/types"
 	"gopkg.in/yaml.v2"
 	"io"
@@ -219,4 +220,9 @@ func warnUserOfBadLifeChoices() {
 	fmt.Println("!!!! Would you like to change them and try again?                               !!!!")
 	fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 	fmt.Println()
+}
+
+func SkipUpdateByDefault() bool {
+	// skip update when running on CI server, or if SKIP_UPDATE_CHECK env var is set
+	return internal.CheckForCIEnvironment() || os.Getenv("SKIP_UPDATE_CHECK") == "true"
 }

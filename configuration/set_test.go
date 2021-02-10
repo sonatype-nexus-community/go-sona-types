@@ -17,6 +17,7 @@ package configuration
 import (
 	"bytes"
 	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/sonatype-nexus-community/go-sona-types/internal"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -179,4 +180,29 @@ func TestGetConfigFromCommandLineIqServerWithLoopToResetConfig(t *testing.T) {
 	if confMarshallIq.Iq.IQUsername != "admin1" && confMarshallIq.Iq.IQToken != "admin1234" && confMarshallIq.Iq.IQServer != "http://localhost:8080" {
 		t.Errorf("Config not set properly, expected 'admin1', 'admin1234' and 'http://localhost:8080' but got %s, %s and %s", confMarshallIq.Iq.IQUsername, confMarshallIq.Iq.IQToken, confMarshallIq.Iq.IQServer)
 	}
+}
+
+func TestSkipUpdateByDefault(t *testing.T) {
+	envCI := internal.NewTestEnvVar(t, "CI")
+	verifyEnvVarAffectsSkipUpdate(t, envCI)
+	// clear CI var so later tests can pass when running in our real CI environment. Chicken/Egg
+	envCI.Unset()
+	defer envCI.Reset()
+
+	verifyEnvVarAffectsSkipUpdate(t, internal.NewTestEnvVar(t, "JENKINS_HOME"))
+	verifyEnvVarAffectsSkipUpdate(t, internal.NewTestEnvVar(t, "GITHUB_ACTIONS"))
+	verifyEnvVarAffectsSkipUpdate(t, internal.NewTestEnvVar(t, "SKIP_UPDATE_CHECK"))
+}
+
+func verifyEnvVarAffectsSkipUpdate(t *testing.T, eVarCI *internal.TestEnvVar) {
+	defer func() {
+		eVarCI.Reset()
+	}()
+
+	eVarCI.Unset()
+	assert.Equal(t, false, SkipUpdateByDefault(), eVarCI)
+
+	eVarCI.Set("true")
+	assert.Equal(t, true, SkipUpdateByDefault())
+	eVarCI.Unset()
 }

@@ -19,6 +19,7 @@ package useragent
 
 import (
 	"fmt"
+	"github.com/sonatype-nexus-community/go-sona-types/internal"
 	"os"
 	"runtime"
 
@@ -72,7 +73,7 @@ func (a *Agent) GetUserAgent() string {
 	// double underscore "__" delimits Name/Version
 	// triple underscore "___" delimits currentCaller/priorCaller/priorPriorCaller
 	callTree := getCallerInfo()
-	if checkForCIEnvironment() {
+	if internal.CheckForCIEnvironment() {
 		return a.checkCIEnvironments(callTree)
 	}
 	return a.getUserAgent("non ci usage", callTree)
@@ -102,11 +103,11 @@ func (a *Agent) checkCIEnvironments(callTree string) string {
 		a.logLady.Trace("GitLab usage")
 		return a.getUserAgent("gitlab-ci", callTree)
 	}
-	if checkIfJenkins() {
+	if internal.CheckIfJenkins() {
 		a.logLady.Trace("Jenkins usage")
 		return a.getUserAgent("jenkins", callTree)
 	}
-	if checkIfGitHub() {
+	if internal.CheckIfGitHub() {
 		id := getGitHubActionID()
 		a.logLady.WithField("gh_action_id", id).Trace("GitHub Actions usage")
 		return a.getUserAgent(fmt.Sprintf("github-action %s", id), callTree)
@@ -121,24 +122,6 @@ func (a *Agent) getUserAgent(agent string, callTree string) (userAgent string) {
 	userAgent = fmt.Sprintf("%s (%s; %s %s; %s)", a.getUserAgentBaseAndVersion(), agent, a.Options.GoOS, a.Options.GoArch, callTree)
 	a.logLady.WithField("user_agent_parsed", userAgent).Trace("Obtained parsed User Agent string")
 	return
-}
-
-func checkForCIEnvironment() bool {
-	s := os.Getenv("CI")
-	if s != "" {
-		return true
-	}
-	return checkIfJenkins() || checkIfGitHub()
-}
-
-func checkIfJenkins() bool {
-	s := os.Getenv("JENKINS_HOME")
-	return s != ""
-}
-
-func checkIfGitHub() bool {
-	s := os.Getenv("GITHUB_ACTIONS")
-	return s != ""
 }
 
 // Returns info from SC_CALLER_INFO, example: bitbucket-nancy-pipe-0.1.9
