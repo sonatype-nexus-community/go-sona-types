@@ -16,12 +16,11 @@ package configuration
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/sonatype-nexus-community/go-sona-types/internal"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"os"
 	"strings"
 	"testing"
 )
@@ -183,68 +182,27 @@ func TestGetConfigFromCommandLineIqServerWithLoopToResetConfig(t *testing.T) {
 	}
 }
 
-type EnvVarTuple struct {
-	t             *testing.T
-	name          string
-	wasPresent    bool
-	originalValue string
-}
-
-func NewTestEnvVar(t *testing.T, name string) *EnvVarTuple {
-	if t == nil {
-		panic(fmt.Errorf("missing unit test reference"))
-	}
-	et := EnvVarTuple{}
-	et.t = t
-	if name == "" {
-		et.t.Errorf("missing environment variable name")
-	}
-	et.name = name
-	et.originalValue, et.wasPresent = os.LookupEnv(et.name)
-	return &et
-}
-
-func (et *EnvVarTuple) set(newValue string) {
-	if err := os.Setenv(et.name, newValue); err != nil {
-		et.t.Errorf("failed to set environment variable: %s to value: %s", et.name, newValue)
-	}
-}
-
-func (et *EnvVarTuple) unset() {
-	if err := os.Unsetenv(et.name); err != nil {
-		et.t.Errorf("failed to clear environment variable: %s", et.name)
-	}
-}
-
-func (et *EnvVarTuple) reset() {
-	if et.wasPresent {
-		et.set(et.originalValue)
-	} else {
-		et.unset()
-	}
-}
-
 func TestSkipUpdateByDefault(t *testing.T) {
-	envCI := NewTestEnvVar(t, "CI")
+	envCI := internal.NewTestEnvVar(t, "CI")
 	verifyEnvVarAffectsSkipUpdate(t, envCI)
 	// clear CI var so later tests can pass when running in our real CI environment. Chicken/Egg
-	envCI.unset()
-	defer envCI.reset()
+	envCI.Unset()
+	defer envCI.Reset()
 
-	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "JENKINS_HOME"))
-	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "GITHUB_ACTIONS"))
-	verifyEnvVarAffectsSkipUpdate(t, NewTestEnvVar(t, "SKIP_UPDATE_CHECK"))
+	verifyEnvVarAffectsSkipUpdate(t, internal.NewTestEnvVar(t, "JENKINS_HOME"))
+	verifyEnvVarAffectsSkipUpdate(t, internal.NewTestEnvVar(t, "GITHUB_ACTIONS"))
+	verifyEnvVarAffectsSkipUpdate(t, internal.NewTestEnvVar(t, "SKIP_UPDATE_CHECK"))
 }
 
-func verifyEnvVarAffectsSkipUpdate(t *testing.T, eVarCI *EnvVarTuple) {
+func verifyEnvVarAffectsSkipUpdate(t *testing.T, eVarCI *internal.TestEnvVar) {
 	defer func() {
-		eVarCI.reset()
+		eVarCI.Reset()
 	}()
 
-	eVarCI.unset()
+	eVarCI.Unset()
 	assert.Equal(t, false, SkipUpdateByDefault(), eVarCI)
 
-	eVarCI.set("true")
+	eVarCI.Set("true")
 	assert.Equal(t, true, SkipUpdateByDefault())
-	eVarCI.unset()
+	eVarCI.Unset()
 }

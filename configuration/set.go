@@ -18,8 +18,8 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/sonatype-nexus-community/go-sona-types/internal"
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex/types"
-	"github.com/sonatype-nexus-community/go-sona-types/useragent"
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
@@ -224,5 +224,5 @@ func warnUserOfBadLifeChoices() {
 
 func SkipUpdateByDefault() bool {
 	// skip update when running on CI server, or if SKIP_UPDATE_CHECK env var is set
-	return useragent.CheckForCIEnvironment() || os.Getenv("SKIP_UPDATE_CHECK") == "true"
+	return internal.CheckForCIEnvironment() || os.Getenv("SKIP_UPDATE_CHECK") == "true"
 }
