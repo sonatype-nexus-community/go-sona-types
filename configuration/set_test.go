@@ -238,7 +238,6 @@ func verifyEnvVarAffectsSkipUpdate(t *testing.T, eVarCI *EnvVarTuple) {
 	eVarCI.unset()
 	assert.Equal(t, false, SkipUpdateByDefault(), eVarCI)
 
-	assert.Nil(t, os.Setenv(eVarCI.name, "true"))
 	eVarCI.set("true")
 	assert.Equal(t, true, SkipUpdateByDefault())
 	eVarCI.unset()
