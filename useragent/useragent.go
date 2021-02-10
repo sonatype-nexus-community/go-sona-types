@@ -72,7 +72,7 @@ func (a *Agent) GetUserAgent() string {
 	// double underscore "__" delimits Name/Version
 	// triple underscore "___" delimits currentCaller/priorCaller/priorPriorCaller
 	callTree := getCallerInfo()
-	if checkForCIEnvironment() {
+	if CheckForCIEnvironment() {
 		return a.checkCIEnvironments(callTree)
 	}
 	return a.getUserAgent("non ci usage", callTree)
@@ -123,7 +123,7 @@ func (a *Agent) getUserAgent(agent string, callTree string) (userAgent string) {
 	return
 }
 
-func checkForCIEnvironment() bool {
+func CheckForCIEnvironment() bool {
 	s := os.Getenv("CI")
 	if s != "" {
 		return true
