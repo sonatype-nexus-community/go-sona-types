@@ -91,7 +91,7 @@ useragent := ua.GetUserAgent()
 
 Follow the steps below to release a new version.
 
-  1. Checkout/pull the latest `master` branch, and create a new tag with the desired semantic version and a helpful note:
+  1. Checkout/pull the latest `main` branch, and create a new tag with the desired semantic version and a helpful note:
   
          git tag -a v0.0.x -m "Helpful message in tag."
          
