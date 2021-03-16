@@ -32,8 +32,10 @@ import (
 //goland:noinspection GoUnusedConst
 const ConfigTypeYaml = "yaml"
 
-// these consts must match their associated yaml tag below. for use where tag name matters, like viper
+// must match OSSIndexConfig.Username yaml tag. for use where tag name matters, like viper
 const ViperKeyUsername = "ossi.Username"
+
+// must match OSSIndexConfig.Token yaml tag. for use where tag name matters, like viper
 const ViperKeyToken = "ossi.Token"
 
 // OSSIndexConfig is a struct for holding OSS Index Configuration, and for writing it to yaml
@@ -42,13 +44,18 @@ type OSSIndexConfig struct {
 	Token    string `yaml:"Token"`
 }
 
+// Used when writing/reading OSS Index config to/from yaml files
 type ConfMarshallOssi struct {
 	Ossi OSSIndexConfig
 }
 
-// these consts must match their associated yaml tag below. for use where tag name matters, like viper
+// must match IQConfig.IQServer yaml tag. for use where tag name matters, like viper
 const ViperKeyIQServer = "iq.Server"
+
+// must match IQConfig.IQUsername yaml tag. for use where tag name matters, like viper
 const ViperKeyIQUsername = "iq.Username"
+
+// must match IQConfig.IQToken yaml tag. for use where tag name matters, like viper
 const ViperKeyIQToken = "iq.Token"
 
 // IQConfig is a struct for holding IQ Configuration, and for writing it to yaml
@@ -58,6 +65,7 @@ type IQConfig struct {
 	IQToken    string `yaml:"Token"`
 }
 
+// Used when writing/reading IQ Server config to/from yaml files
 type ConfMarshallIq struct {
 	Iq IQConfig
 }

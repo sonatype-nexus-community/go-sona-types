@@ -16,6 +16,7 @@ package configuration
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/sonatype-nexus-community/go-sona-types/internal"
 	"github.com/stretchr/testify/assert"
@@ -31,6 +32,46 @@ func setup(t *testing.T) (configSet *ConfigSet) {
 	assert.Nil(t, err)
 	configSet.HomeDir = "/tmp"
 	return
+}
+
+func ExampleConfMarshallOssi() {
+	config := ConfMarshallOssi{
+		Ossi: OSSIndexConfig{
+			Username: "ossiUser@email.com",
+			Token:    "ossiToken",
+		},
+	}
+	b, err := yaml.Marshal(config)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	// The yaml config file on disk should match the output printed below.
+	fmt.Printf("%s", b)
+	// Output:
+	// ossi:
+	//   Username: ossiUser@email.com
+	//   Token: ossiToken
+}
+
+func ExampleConfMarshallIq() {
+	config := ConfMarshallIq{
+		Iq: IQConfig{
+			IQUsername: "iqUserName",
+			IQToken:    "iqPassword",
+			IQServer:   "http://myIqServer",
+		},
+	}
+	b, err := yaml.Marshal(config)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	// The yaml config file on disk should match the output printed below.
+	fmt.Printf("%s", b)
+	// Output:
+	// iq:
+	//   Server: http://myIqServer
+	//   Username: iqUserName
+	//   Token: iqPassword
 }
 
 func TestGetConfigFromCommandLineLoggerNil(t *testing.T) {
