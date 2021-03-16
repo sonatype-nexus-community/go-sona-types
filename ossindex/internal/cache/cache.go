@@ -73,7 +73,7 @@ func (c *Cache) getDatabasePath() (dbDir string, err error) {
 		}
 	}
 
-	return path.Join(usr.HomeDir, types.OssIndexDirName, c.Options.DBDirName, c.Options.DBName), err
+	return path.Join(types.GetOssIndexDirectory(usr.HomeDir), c.Options.DBDirName, c.Options.DBName), err
 }
 
 // RemoveCache deletes the cache database

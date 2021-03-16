@@ -29,6 +29,7 @@ import (
 )
 
 // For use when overriding Viper config type, e.g.: viper.SetConfigType(ConfigTypeYaml)
+//goland:noinspection GoUnusedConst
 const ConfigTypeYaml = "yaml"
 
 // these consts must match their associated yaml tag below. for use where tag name matters, like viper
@@ -93,11 +94,11 @@ func (i *ConfigSet) GetConfigFromCommandLine(stdin io.Reader) (err error) {
 	switch str := strings.TrimSpace(configType); str {
 	case "iq":
 		i.logLady.Info("User chose to set IQ Config, moving forward")
-		i.ConfigLocation = filepath.Join(i.HomeDir, types.IQServerDirName, types.IQServerConfigFileName)
+		i.ConfigLocation = types.GetIQServerConfigFile(i.HomeDir)
 		err = i.getAndSetIQConfig(reader)
 	case "ossindex":
 		i.logLady.Info("User chose to set OSS Index config, moving forward")
-		i.ConfigLocation = filepath.Join(i.HomeDir, types.OssIndexDirName, types.OssIndexConfigFileName)
+		i.ConfigLocation = types.GetOssIndexConfigFile(i.HomeDir)
 		err = i.getAndSetOSSIndexConfig(reader)
 	case "":
 		return fmt.Errorf(msgConfigNotSet)

@@ -17,17 +17,49 @@ package types
 
 import (
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
 
 const (
-	OssIndexDirName        = ".ossindex"
+	// Parent directory containing the OssIndex configuration file.
+	// Intended for use with the user home directory.
+	OssIndexDirName = ".ossindex"
+
+	// Name of the file containing OssIndex configuration settings.
+	// Intended for use as a sub directory of OssIndexDirName.
 	OssIndexConfigFileName = ".oss-index-config"
-	IQServerDirName        = ".iqserver"
+
+	// Parent directory containing the IQ Server configuration file.
+	// Intended for use with the user home directory.
+	IQServerDirName = ".iqserver"
+
+	// Name of the file containing IQ Server configuration settings.
+	// Intended for use as a sub directory of IQServerDirName.
 	IQServerConfigFileName = ".iq-server-config"
 )
+
+// Parent directory containing the OssIndex configuration file.
+func GetOssIndexDirectory(homeDir string) string {
+	return filepath.Join(homeDir, OssIndexDirName)
+}
+
+// Path to the file containing OssIndex configuration settings.
+func GetOssIndexConfigFile(homeDir string) string {
+	return filepath.Join(GetOssIndexDirectory(homeDir), OssIndexConfigFileName)
+}
+
+// Parent directory containing the IQ Server configuration file.
+func GetIQServerDirectory(homeDir string) string {
+	return filepath.Join(homeDir, IQServerDirName)
+}
+
+// Path to the file containing IQ Server configuration settings.
+func GetIQServerConfigFile(homeDir string) string {
+	return filepath.Join(GetIQServerDirectory(homeDir), IQServerConfigFileName)
+}
 
 type Options struct {
 	Version     string
