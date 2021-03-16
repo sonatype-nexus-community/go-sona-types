@@ -45,7 +45,7 @@ func ExampleConfMarshallOssi() {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	// The yaml config file on disk should match the output printed below.
+	// The yaml config file content on disk should match the output printed below.
 	fmt.Printf("%s", b)
 	// Output:
 	// ossi:
@@ -65,7 +65,7 @@ func ExampleConfMarshallIq() {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	// The yaml config file on disk should match the output printed below.
+	// The yaml config file content on disk should match the output printed below.
 	fmt.Printf("%s", b)
 	// Output:
 	// iq:
