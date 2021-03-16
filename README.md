@@ -1,6 +1,7 @@
 # Go Sonatypes
 
 <a href="https://circleci.com/gh/sonatype-nexus-community/go-sona-types"><img src="https://circleci.com/gh/sonatype-nexus-community/go-sona-types.svg?style=shield" alt="Circle CI Build Status"></img></a>
+[![Go Reference](https://pkg.go.dev/badge/github.com/sonatype-nexus-community/go-sona-types.svg)](https://pkg.go.dev/github.com/sonatype-nexus-community/go-sona-types)
 
 This project is a nice lil set of libraries that we created for working with:
 
