@@ -29,7 +29,7 @@ const (
 	OssIndexDirName = ".ossindex"
 
 	// Name of the file containing OssIndex configuration settings.
-	// Intended for use as a sub directory of OssIndexDirName.
+	// Typically found in directory OssIndexDirName.
 	OssIndexConfigFileName = ".oss-index-config"
 
 	// Parent directory containing the IQ Server configuration file.
@@ -37,7 +37,7 @@ const (
 	IQServerDirName = ".iqserver"
 
 	// Name of the file containing IQ Server configuration settings.
-	// Intended for use as a sub directory of IQServerDirName.
+	// Typically found in directory IQServerDirName.
 	IQServerConfigFileName = ".iq-server-config"
 )
 
