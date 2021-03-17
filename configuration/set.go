@@ -29,6 +29,7 @@ import (
 )
 
 // For use when overriding Viper config type, e.g.: viper.SetConfigType(ConfigTypeYaml)
+//
 //goland:noinspection GoUnusedConst
 const ConfigTypeYaml = "yaml"
 
