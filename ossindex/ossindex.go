@@ -40,6 +40,7 @@ const MaxCoords = 128
 // IServer is an interface for mocking the OSS Index Server struct
 type IServer interface {
 	NoCacheNoProblems() error
+	Audit(p []string) (map[string]types.Coordinate, error)
 	AuditPackages(p []string) ([]types.Coordinate, error)
 }
 
