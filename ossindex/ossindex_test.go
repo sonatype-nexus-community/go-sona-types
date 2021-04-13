@@ -37,6 +37,7 @@ const purl = "pkg:github/BurntSushi/toml@0.3.1"
 
 var lowerCasePurl = strings.ToLower(purl)
 var expectedCoordinate types.Coordinate
+var expectedCoordinates []types.Coordinate
 
 func setupOptions() (options types.Options) {
 	options.Username = "testuser"
@@ -156,7 +157,7 @@ func TestAuditPackages_NewPackage(t *testing.T) {
 	setupTest()
 	ossindex := setupOSSIndex(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		verifyClientCallAndWriteValidPackageResponse(t, r, w)
+		verifyClientCallAndWriteValidPackageResponse(t, r, w, []types.Coordinate{expectedCoordinate})
 	}))
 	defer ts.Close()
 	ossindex.Options.OSSIndexURL = ts.URL
@@ -167,11 +168,28 @@ func TestAuditPackages_NewPackage(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func verifyClientCallAndWriteValidPackageResponse(t *testing.T, r *http.Request, w http.ResponseWriter) {
+func TestAudit_Package(t *testing.T) {
+	purls := []string{"pkg:golang/github.com/BurntSushi/toml@0.3.2", "pkg:golang/github.com/BurntSushi/toml@0.3.3"}
+
+	setupTestWithMultipleCoordinates(purls)
+
+	ossindex := setupOSSIndex(t)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		verifyClientCallAndWriteValidPackageResponse(t, r, w, expectedCoordinates)
+	}))
+	defer ts.Close()
+	ossindex.Options.OSSIndexURL = ts.URL
+
+	coordinates, err := ossindex.Audit(purls)
+
+	assert.Equal(t, 2, len(coordinates))
+	assert.Nil(t, err)
+}
+
+func verifyClientCallAndWriteValidPackageResponse(t *testing.T, r *http.Request, w http.ResponseWriter, coordinates []types.Coordinate) {
 	assert.Equal(t, http.MethodPost, r.Method)
 	assert.Equal(t, "/", r.URL.EscapedPath())
 	w.WriteHeader(http.StatusOK)
-	coordinates := []types.Coordinate{expectedCoordinate}
 	jsonCoordinates, _ := json.Marshal(coordinates)
 	_, _ = w.Write(jsonCoordinates)
 }
@@ -214,7 +232,7 @@ func TestAuditPackages_SinglePackage_Cached_WithExpiredTTL(t *testing.T) {
 	}
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		verifyClientCallAndWriteValidPackageResponse(t, r, w)
+		verifyClientCallAndWriteValidPackageResponse(t, r, w, []types.Coordinate{expectedCoordinate})
 	}))
 	defer ts.Close()
 	ossindex.Options.OSSIndexURL = ts.URL
@@ -251,6 +269,28 @@ func setupTest() {
 				Excluded:    false,
 			},
 		},
+	}
+}
+
+func setupTestWithMultipleCoordinates(purls []string) {
+	dec, _ := decimal.NewFromString("9.8")
+	for _, v := range purls {
+		expectedCoordinates = append(expectedCoordinates, types.Coordinate{
+			Coordinates: v,
+			Reference:   "https://ossindex.sonatype.org/component/" + lowerCasePurl,
+			Vulnerabilities: []types.Vulnerability{
+				{
+					ID:          "id",
+					Title:       "test",
+					Description: "description",
+					CvssScore:   dec,
+					CvssVector:  "vectorvictor",
+					Cve:         "CVE-123-123",
+					Reference:   "http://www.internet.com",
+					Excluded:    false,
+				},
+			},
+		})
 	}
 }
 

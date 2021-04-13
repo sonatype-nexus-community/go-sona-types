@@ -80,6 +80,27 @@ func Default(logger *logrus.Logger) *Server {
 		})
 }
 
+// Audit will given a string slice of purls, run an OSS Index audit,
+// and return the result as a map of the coordinates, with the result under each key, or an error if applicable
+func (o *Server) Audit(purls []string) (results map[string]types.Coordinate, err error) {
+	results = make(map[string]types.Coordinate)
+
+	coords, err := o.doAuditPackages(purls)
+	if err != nil {
+		return
+	}
+
+	if len(coords) > 0 {
+		for _, v := range coords {
+			results[v.Coordinates] = v
+		}
+
+		return
+	}
+
+	return
+}
+
 // AuditPackages will given a slice of Package URLs run an OSS Index audit, and return the result
 func (o *Server) AuditPackages(purls []string) ([]types.Coordinate, error) {
 	return o.doAuditPackages(purls)
