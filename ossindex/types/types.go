@@ -75,6 +75,7 @@ type Options struct {
 type Coordinate struct {
 	Coordinates     string
 	Reference       string
+	Path            string
 	Vulnerabilities []Vulnerability
 	InvalidSemVer   bool
 }

@@ -59,6 +59,7 @@ type Component struct {
 	Version         string          `xml:"version"`
 	Group           string          `xml:"group,omitempty"`
 	Purl            string          `xml:"purl,omitempty"`
+	Properties      Properties      `xml:"properties,omitempty"`
 	Hashes          *Hashes         `xml:"hashes,omitempty"`
 	Vulnerabilities Vulnerabilities `xml:"v:vulnerabilities,omitempty"`
 }
@@ -82,6 +83,15 @@ type SbomVulnerability struct {
 	Source      Source    `xml:"v:source"`
 	Ratings     []Ratings `xml:"v:ratings"`
 	Description string    `xml:"v:description"`
+}
+
+type Property struct {
+	Name  string `xml:"name,attr"`
+	Value string `xml:",chardata"`
+}
+
+type Properties struct {
+	Property []Property `xml:"property"`
 }
 
 type Ratings struct {
@@ -242,6 +252,18 @@ func (c *CycloneDX) processPurlsIntoSBOMSchema1_1(results []types.Coordinate) st
 			Purl:    purl.String(),
 			Name:    purl.Name,
 			Version: purl.Version,
+		}
+
+		var props []Property
+		if v.Path != "" {
+			props = append(props, Property{Name: "path", Value: v.Path})
+		}
+		// Written like this to allow us to add other properties in the future with little effort
+		if len(props) > 0 {
+			properties := Properties{
+				Property: props,
+			}
+			component.Properties = properties
 		}
 
 		if v.IsVulnerable() {
