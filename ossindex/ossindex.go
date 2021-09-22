@@ -66,8 +66,9 @@ func New(logger *logrus.Logger, options types.Options) *Server {
 		Options: options,
 		agent:   ua,
 		dbCache: cache.New(logger, cache.Options{
-			DBName: options.DBCacheName,
-			TTL:    options.TTL,
+			DBCachePath: options.DBCachePath,
+			DBName:      options.DBCacheName,
+			TTL:         options.TTL,
 		}),
 	}
 }

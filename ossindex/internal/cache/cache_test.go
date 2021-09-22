@@ -31,8 +31,24 @@ var coordinates []types.Coordinate
 
 var purls []string
 
+func TestWithCacheBasePath(t *testing.T) {
+	// This is going to act wonky on Windows, but should be fine since we do majority of our dev, etc... on OS X and Linux
+	cache := setupTestsAndCache(t, "/tmp")
+
+	err := cache.Insert(coordinates)
+	assert.Nil(t, err)
+
+	var result DBValue
+	err = cache.getKeyAndHydrate(coordinates[0].Coordinates, &result)
+
+	assert.Equal(t, coordinates[0], result.Coordinates)
+	assert.Nil(t, err)
+
+	tearDown(t, cache)
+}
+
 func TestInsert(t *testing.T) {
-	cache := setupTestsAndCache(t)
+	cache := setupTestsAndCache(t, "")
 
 	err := cache.Insert(coordinates)
 	assert.Nil(t, err)
@@ -47,7 +63,7 @@ func TestInsert(t *testing.T) {
 }
 
 func TestGetWithRegularTTL(t *testing.T) {
-	cache := setupTestsAndCache(t)
+	cache := setupTestsAndCache(t, "")
 
 	err := cache.Insert(coordinates)
 	assert.Nil(t, err)
@@ -62,7 +78,7 @@ func TestGetWithRegularTTL(t *testing.T) {
 }
 
 func TestGetWithExpiredTTL(t *testing.T) {
-	cache := setupTestsAndCache(t)
+	cache := setupTestsAndCache(t, "")
 	cache.Options.TTL = time.Now().AddDate(0, 0, -1)
 
 	err := cache.Insert(coordinates)
@@ -82,7 +98,7 @@ func TestGetWithExpiredTTL(t *testing.T) {
 	tearDown(t, cache)
 }
 
-func setupTestsAndCache(t *testing.T) *Cache {
+func setupTestsAndCache(t *testing.T, dbCachePath string) *Cache {
 	dec, _ := decimal.NewFromString("9.8")
 	coordinate := types.Coordinate{
 		Coordinates: "pkg:golang/test@0.0.0",
@@ -105,7 +121,12 @@ func setupTestsAndCache(t *testing.T) *Cache {
 
 	coordinates = append(coordinates, coordinate)
 	logger, _ := test.NewNullLogger()
-	cache := New(logger, Options{DBName: "nancy-cache-test", TTL: time.Now().Local().Add(time.Hour * 12)})
+	options := Options{DBName: "nancy-cache-test", TTL: time.Now().Local().Add(time.Hour * 12)}
+	if dbCachePath != "" {
+		options.DBCachePath = dbCachePath
+	}
+
+	cache := New(logger, options)
 	err := cache.RemoveCache()
 	if err != nil {
 		t.Error(err)

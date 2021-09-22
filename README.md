@@ -14,7 +14,7 @@ A lot of our projects were starting to depend heavily on `nancy`, and it was slo
 
 ## Development
 
-You'll need Go 1.14, and that's about it!
+You'll need Go 1.16, and that's about it!
 
 Everything (tests, lint, etc...) can be run with `make` locally.
 
@@ -37,7 +37,7 @@ logger, _ := logrus.NewNullLogger()
 ossi := ossindex.Default(logger)
 
 // Obtains a pointer to a Server struct, with options you set
-ossi = ossindex.New(loggger, types.Options{Username: "username", Token: "token"})
+ossi = ossindex.New(loggger, types.Options{Username: "username", Token: "token", DBCachePath: "/tmp"})
 
 // Audits a slice of purls, returns results or an error
 results, err := ossi.AuditPackages([]string{"a", "list", "of", "purls"})

@@ -40,6 +40,8 @@ type Cache struct {
 
 // Options is a struct with values necessary to run the cache package
 type Options struct {
+	// Base path for DB
+	DBCachePath string
 	// DBDirName is the directory that will be created or used for the cache DB, defaults to nancy
 	DBDirName string
 	// DBName is the actual name of the cache database on disk
@@ -65,11 +67,16 @@ func New(logger *logrus.Logger, options Options) *Cache {
 }
 
 func (c *Cache) getDatabasePath() (dbDir string, err error) {
+	// Allow someone to set a base path for a cache
+	if c.Options.DBCachePath != "" {
+		return path.Join(types.GetOssIndexDirectory(c.Options.DBCachePath), c.Options.DBDirName, c.Options.DBName), err
+	}
+
 	usr, err := user.Current()
 	if err != nil {
 		return "", &types.OSSIndexError{
 			Err:     err,
-			Message: "Error getting user home",
+			Message: "Error getting user DB path",
 		}
 	}
 
@@ -88,7 +95,7 @@ func (c *Cache) RemoveCache() error {
 	if err != nil {
 		return &types.OSSIndexError{
 			Err:     err,
-			Message: "Error getting user home",
+			Message: "Error getting user DB path",
 		}
 	}
 	err = pudge.DeleteFile(dbDir)
@@ -121,7 +128,7 @@ func (c *Cache) Insert(coordinates []types.Coordinate) (err error) {
 		if err != nil {
 			return &types.OSSIndexError{
 				Err:     err,
-				Message: "Error getting user home",
+				Message: "Error getting user DB path",
 			}
 		}
 
@@ -206,7 +213,7 @@ func (c *Cache) deleteKey(key string) error {
 	if err != nil {
 		return &types.OSSIndexError{
 			Err:     err,
-			Message: "Error getting user home",
+			Message: "Error getting user DB path",
 		}
 	}
 
@@ -222,7 +229,7 @@ func (c *Cache) getKeyAndHydrate(key string, item *DBValue) error {
 	if err != nil {
 		return &types.OSSIndexError{
 			Err:     err,
-			Message: "Error getting user home",
+			Message: "Error getting user DB path",
 		}
 	}
 

@@ -69,6 +69,7 @@ type Options struct {
 	Tool        string
 	OSSIndexURL string
 	DBCacheName string
+	DBCachePath string
 	TTL         time.Time
 }
 
