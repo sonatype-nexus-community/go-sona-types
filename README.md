@@ -14,7 +14,7 @@ A lot of our projects were starting to depend heavily on `nancy`, and it was slo
 
 ## Development
 
-You'll need Go 1.14, and that's about it!
+You'll need Go 1.16, and that's about it!
 
 Everything (tests, lint, etc...) can be run with `make` locally.
 
