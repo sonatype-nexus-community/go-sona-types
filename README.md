@@ -37,7 +37,7 @@ logger, _ := logrus.NewNullLogger()
 ossi := ossindex.Default(logger)
 
 // Obtains a pointer to a Server struct, with options you set
-ossi = ossindex.New(loggger, types.Options{Username: "username", Token: "token"})
+ossi = ossindex.New(loggger, types.Options{Username: "username", Token: "token", DBCachePath: "/tmp"})
 
 // Audits a slice of purls, returns results or an error
 results, err := ossi.AuditPackages([]string{"a", "list", "of", "purls"})
