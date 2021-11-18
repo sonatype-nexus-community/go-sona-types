@@ -396,7 +396,7 @@ func (i *Server) getInternalApplicationID(applicationID string) (string, error) 
 		"respBody":    respBody,
 	}).Error("Error communicating with Nexus IQ Server application endpoint")
 	return "", &ServerError{
-		Err: fmt.Errorf("Unable to communicate with Nexus IQ Server, status code returned is: %d, status: %s, body: %s",
+		Err: fmt.Errorf("unable to communicate with Nexus IQ Server, status code: %d, status: %s, body: %s",
 			resp.StatusCode, resp.Status, respBody),
 		Message: "Unable to communicate with Nexus IQ Server",
 	}
