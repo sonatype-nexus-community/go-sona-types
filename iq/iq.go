@@ -380,7 +380,7 @@ func (i *Server) getInternalApplicationID(applicationID string) (string, error) 
 		}
 	}
 
-	// read body or response with error
+	// read body of response with error
 	//noinspection GoUnhandledErrorResult
 	defer resp.Body.Close()
 	var b []byte
