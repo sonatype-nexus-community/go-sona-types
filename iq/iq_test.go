@@ -394,8 +394,9 @@ func TestAuditPackagesIqDownOrUnreachable(t *testing.T) {
 	httpmock.RegisterResponder("POST", "https://ossindex.sonatype.org/api/v3/component-report",
 		httpmock.NewStringResponder(200, string(jsonCoordinates)))
 
+	const errMsgFromIQ = "some error from IQ Server with helpful text"
 	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/applications?publicId=testapp",
-		httpmock.NewBytesResponder(404, []byte("")))
+		httpmock.NewBytesResponder(404, []byte(errMsgFromIQ)))
 
 	var purls []string
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
@@ -407,6 +408,7 @@ func TestAuditPackagesIqDownOrUnreachable(t *testing.T) {
 	if err == nil {
 		t.Error("There is an error")
 	}
+	assert.Contains(t, err.Error(), errMsgFromIQ)
 }
 
 func TestAuditPackagesWithOssiError(t *testing.T) {
