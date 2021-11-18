@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -378,11 +379,25 @@ func (i *Server) getInternalApplicationID(applicationID string) (string, error) 
 			Message: "Unable to retrieve an internal ID",
 		}
 	}
+
+	// read body or response with error
+	//noinspection GoUnhandledErrorResult
+	defer resp.Body.Close()
+	var b []byte
+	b, err = io.ReadAll(resp.Body)
+	if err != nil {
+		i.logLady.Error(err)
+	}
+	respBody := string(b)
+
 	i.logLady.WithFields(logrus.Fields{
 		"status_code": resp.StatusCode,
+		"status":      resp.Status,
+		"respBody":    respBody,
 	}).Error("Error communicating with Nexus IQ Server application endpoint")
 	return "", &ServerError{
-		Err:     fmt.Errorf("Unable to communicate with Nexus IQ Server, status code returned is: %d", resp.StatusCode),
+		Err: fmt.Errorf("Unable to communicate with Nexus IQ Server, status code returned is: %d, status: %s, body: %s",
+			resp.StatusCode, resp.Status, respBody),
 		Message: "Unable to communicate with Nexus IQ Server",
 	}
 }
