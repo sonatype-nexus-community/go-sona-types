@@ -411,7 +411,6 @@ func TestAuditPackagesIqCannotLocateApplicationID(t *testing.T) {
 }
 
 func TestAuditPackagesIqAutoCreateApplicationID(t *testing.T) {
-	expectedError := "An error occurred: There was an issue auditing packages using OSS Index, err: Post \"https://ossindex.sonatype.org/api/v3/component-report\": no responder found"
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
@@ -424,6 +423,11 @@ func TestAuditPackagesIqAutoCreateApplicationID(t *testing.T) {
 	httpmock.RegisterResponder("POST", "http://sillyplace.com:8090/api/v2/applications",
 		httpmock.NewStringResponder(200, createApplicationResponse))
 
+	httpmock.RegisterResponder("POST", "http://sillyplace.com:8090/api/v2/scan/applications/123a08ddc9cd40aab4bc347e9e66f799/sources/nancy?stageId=develop",
+		httpmock.NewStringResponder(202, thirdPartyAPIResultJSON))
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/status/9cee2b6366fc4d328edc318eae46b2cb",
+		httpmock.NewStringResponder(200, pollingResult))
+
 	var purls []string
 	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
@@ -433,13 +437,13 @@ func TestAuditPackagesIqAutoCreateApplicationID(t *testing.T) {
 	// force new app org name (non-root)
 	iq.Options.AutomaticApplicationCreationParentOrganizationName = "My Parent Organization Name"
 
-	_, err := iq.AuditPackages(purls)
-	if err == nil {
-		t.Errorf("err should not be nil, expected an err with the following text: %s", expectedError)
-	}
-	if err.Error() != expectedError {
-		t.Errorf("Error returned is not as expected. Expected: %s but got: %s", expectedError, err.Error())
-	}
+	resultUrl, err := iq.AuditPackages(purls)
+	assert.Nil(t, err)
+	assert.Equal(t, StatusURLResult{
+		PolicyAction:          "None",
+		ReportHTMLURL:         "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e",
+		AbsoluteReportHTMLURL: "http://sillyplace.com:8090/ui/links/application/test-app/report/95c4c14e",
+	}, resultUrl)
 }
 
 func TestAuditPackagesIqInvalidLicense(t *testing.T) {
