@@ -20,6 +20,7 @@ package iq
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -38,6 +39,9 @@ import (
 
 const internalApplicationIDURL = "/api/v2/applications?publicId="
 
+const createApplicationIDURL = "/api/v2/applications"
+const getOrganizationsURL = "/api/v2/organizations"
+
 const thirdPartyAPILeft = "/api/v2/scan/applications/"
 
 const thirdPartyAPIRight = "/sources/nancy?stageId="
@@ -49,6 +53,48 @@ type StatusURLResult struct {
 	AbsoluteReportHTMLURL string `json:"-"`
 	IsError               bool   `json:"isError"`
 	ErrorMessage          string `json:"errorMessage"`
+}
+
+type organizationResult struct {
+	Organizations []organization `json:"organizations"`
+}
+
+type organization struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Tags []tags `json:"tags"`
+}
+
+type applicationCreation struct {
+	PublicID        string           `json:"publicId"`
+	Name            string           `json:"name"`
+	OrganizationID  string           `json:"organizationId"`
+	ContactUserName string           `json:"contactUserName"`
+	ApplicationTags []applicationTag `json:"applicationTags"`
+}
+
+type applicationCreationResponse struct {
+	ID              string `json:"id"`
+	PublicID        string `json:"publicId"`
+	Name            string `json:"name"`
+	OrganizationID  string `json:"organizationId"`
+	ContactUserName string `json:"contactUserName"`
+	ApplicationTags []struct {
+		ID            string `json:"id"`
+		TagID         string `json:"tagId"`
+		ApplicationID string `json:"applicationId"`
+	} `json:"applicationTags"`
+}
+
+type applicationTag struct {
+	TagID string `json:"tagId"`
+}
+
+type tags struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Color       string `json:"color"`
 }
 
 // Valid policy action values
@@ -92,6 +138,16 @@ func (i *ServerError) Error() string {
 	return fmt.Sprintf("An error occurred: %s", i.Message)
 }
 
+// ApplicationIDError is a custom error type that can be used to tell that a
+// response to IQ was fine, but that no Application exists with that ID
+type ApplicationIDError struct {
+	ApplicationID string
+}
+
+func (i *ApplicationIDError) Error() string {
+	return fmt.Sprint("Unable to retrieve an internal ID for the specified public application ID: ", i.ApplicationID)
+}
+
 type ServerErrorMissingLicense struct {
 }
 
@@ -132,6 +188,8 @@ type Options struct {
 	Application string
 	// Server is the IQ Server base URL (ex: http://localhost:8070)
 	Server string
+	// Organization Name under which to create a new Application when the application does not exist. (ex: Root Organization)
+	AutomaticApplicationCreationParentOrganizationName string
 	// MaxRetries is the maximum amount of times to long poll IQ Server for results
 	MaxRetries int
 	// Tool is the client-id you want to have set in your User-Agent string (ex: nancy-client)
@@ -212,7 +270,8 @@ func (i *Server) AuditWithSbom(sbom string) (StatusURLResult, error) {
 		warnUserOfBadLifeChoices()
 	}
 
-	internalID, err := i.getInternalApplicationID(i.Options.Application)
+	//internalID, err := i.getInternalApplicationID(i.Options.Application)
+	internalID, err := i.getOrCreateInternalApplicationID(i.Options.Application)
 	if internalID == "" && err != nil {
 		i.logLady.Error("Internal ID not obtained from Nexus IQ")
 		return statusURLResp, err
@@ -234,9 +293,10 @@ func (i *Server) AuditPackages(purls []string) (StatusURLResult, error) {
 		warnUserOfBadLifeChoices()
 	}
 
-	internalID, err := i.getInternalApplicationID(i.Options.Application)
+	//internalID, err := i.getInternalApplicationID(i.Options.Application)
+	internalID, err := i.getOrCreateInternalApplicationID(i.Options.Application)
 	if internalID == "" && err != nil {
-		i.logLady.Error("Internal ID not obtained from Nexus IQ")
+		i.logLady.Error("Internal ID not obtained from Nexus IQ", err)
 		return statusURLResp, err
 	}
 
@@ -310,6 +370,222 @@ func (i *Server) audit(sbom string, internalID string) (StatusURLResult, error) 
 	return statusURLResp, r.err
 }
 
+func (i *Server) getOrCreateInternalApplicationID(applicationID string) (appID string, err error) {
+	appID, err = i.getInternalApplicationID(applicationID)
+	if err != nil {
+		if _, ok := err.(*ApplicationIDError); ok {
+			i.logLady.Debug("No Application ID found, attempting to create one")
+			return i.createApplicationID(applicationID)
+		}
+		return
+	}
+
+	return
+}
+
+func (i *Server) getOrganizations() (organizationResult, error) {
+	client := &http.Client{}
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("%s%s", i.Options.Server, getOrganizationsURL),
+		nil,
+	)
+	if err != nil {
+		return organizationResult{}, &ServerError{
+			Err:     err,
+			Message: "Setup of request for getting organizations failed",
+		}
+	}
+	req.SetBasicAuth(i.Options.User, i.Options.Token)
+	req.Header.Set("User-Agent", i.agent.GetUserAgent())
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return organizationResult{}, &ServerError{
+			Err:     err,
+			Message: "There was an error communicating with Nexus IQ Server to get a list of organizations",
+		}
+	}
+
+	i.logLady.Debug("Got response from IQ Server for Organizations")
+
+	if resp.StatusCode == http.StatusPaymentRequired {
+		i.logLady.WithField("resp_status_code", resp.Status).Error("Error accessing Nexus IQ Server due to product license")
+		return organizationResult{}, &ServerErrorMissingLicense{}
+	}
+
+	//noinspection GoUnhandledErrorResult
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return organizationResult{}, &ServerError{
+				Err:     err,
+				Message: "There was an error retrieving the bytes of the response for getting your internal application ID from Nexus IQ Server",
+			}
+		}
+
+		var orgs organizationResult
+		err = json.Unmarshal(bodyBytes, &orgs)
+		if err != nil {
+			return organizationResult{}, &ServerError{
+				Err:     err,
+				Message: "failed to unmarshal response",
+			}
+		}
+
+		return orgs, nil
+	}
+	return organizationResult{}, &ServerError{
+		Err:     fmt.Errorf("unable to communicate with Nexus IQ Server, status code returned is: %d", resp.StatusCode),
+		Message: "Unable to communicate with Nexus IQ Server",
+	}
+}
+
+func (i *Server) createApplicationID(applicationID string) (appID string, err error) {
+	client := &http.Client{}
+	orgs, err := i.getOrganizations()
+	if err != nil {
+		return "", err
+	}
+
+	orgID := ""
+	var tagIDs []applicationTag
+
+	if len(orgs.Organizations) > 0 {
+		// create under configured organization if set, otherwise use ROOT Org
+		if i.Options.AutomaticApplicationCreationParentOrganizationName != "" {
+			for _, currentOrg := range orgs.Organizations {
+				if currentOrg.Name == i.Options.AutomaticApplicationCreationParentOrganizationName {
+					orgID = currentOrg.ID
+					for _, v := range currentOrg.Tags {
+						tagIDs = append(tagIDs, applicationTag{TagID: v.ID})
+					}
+					break
+				}
+			}
+			if orgID == "" {
+				return "", fmt.Errorf("could not find parent organzation named: %s for application auto creation", i.Options.AutomaticApplicationCreationParentOrganizationName)
+			}
+		} else if orgs.Organizations[0].ID == "ROOT_ORGANIZATION_ID" {
+			orgID = orgs.Organizations[1].ID
+
+			if len(orgs.Organizations[1].Tags) > 0 {
+				for _, v := range orgs.Organizations[1].Tags {
+					tagIDs = append(tagIDs, applicationTag{TagID: v.ID})
+				}
+			}
+		} else {
+			orgID = orgs.Organizations[0].ID
+
+			if len(orgs.Organizations[0].Tags) > 0 {
+				for _, v := range orgs.Organizations[0].Tags {
+					tagIDs = append(tagIDs, applicationTag{TagID: v.ID})
+				}
+			}
+		}
+	} else {
+		return "", errors.New("no organization IDs found")
+	}
+
+	app := applicationCreation{
+		PublicID:        applicationID,
+		Name:            applicationID,
+		OrganizationID:  orgID,
+		ContactUserName: i.Options.User,
+		ApplicationTags: tagIDs,
+	}
+
+	js, err := json.Marshal(app)
+	if err != nil {
+		return "", errors.New("unable to marshall json")
+	}
+
+	req, err := http.NewRequest(
+		"POST",
+		fmt.Sprintf("%s%s", i.Options.Server, createApplicationIDURL),
+		bytes.NewBuffer(js),
+	)
+	if err != nil {
+		return "", &ServerError{
+			Err:     err,
+			Message: "Setup of request to create internal application id failed",
+		}
+	}
+
+	req.SetBasicAuth(i.Options.User, i.Options.Token)
+	req.Header.Set("User-Agent", i.agent.GetUserAgent())
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", &ServerError{
+			Err:     err,
+			Message: "There was an error communicating with Nexus IQ Server to create your application ID",
+		}
+	}
+
+	if resp.StatusCode == http.StatusPaymentRequired {
+		i.logLady.WithField("resp_status_code", resp.Status).Error("Error accessing Nexus IQ Server due to product license")
+		return "", &ServerErrorMissingLicense{}
+	}
+
+	//noinspection GoUnhandledErrorResult
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", &ServerError{
+				Err:     err,
+				Message: "There was an error retrieving the bytes of the response for getting your internal application ID from Nexus IQ Server",
+			}
+		}
+
+		var response applicationCreationResponse
+		err = json.Unmarshal(bodyBytes, &response)
+		if err != nil {
+			return "", &ServerError{
+				Err:     err,
+				Message: "failed to unmarshal response",
+			}
+		}
+
+		if response.ID != "" {
+			i.logLady.WithFields(logrus.Fields{
+				"internal_id": response.ID,
+			}).Debug("Created internal ID with Nexus IQ Server")
+
+			return response.ID, nil
+		}
+
+		i.logLady.WithFields(logrus.Fields{
+			"application_id": applicationID,
+		}).Error("Unable to retrieve an internal ID for the specified public application ID")
+
+		return "", &ServerError{
+			Err:     fmt.Errorf("unable to retrieve an internal ID for the specified public application ID: %s", applicationID),
+			Message: "Unable to retrieve an internal ID",
+		}
+	}
+	// something went wrong
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		i.logLady.Error(err)
+		// do not return to allow the ServerError below to be returned
+	}
+	i.logLady.WithFields(logrus.Fields{
+		"body":        string(bodyBytes),
+		"status_code": resp.StatusCode,
+	}).Error("Error communicating with Nexus IQ Server application endpoint")
+	return "", &ServerError{
+		Err:     fmt.Errorf("unable to communicate with Nexus IQ Server, status code returned is: %d", resp.StatusCode),
+		Message: "Unable to communicate with Nexus IQ Server",
+	}
+}
+
 func (i *Server) getInternalApplicationID(applicationID string) (string, error) {
 	client := &http.Client{}
 
@@ -374,10 +650,7 @@ func (i *Server) getInternalApplicationID(applicationID string) (string, error) 
 			"application_id": applicationID,
 		}).Error("Unable to retrieve an internal ID for the specified public application ID")
 
-		return "", &ServerError{
-			Err:     fmt.Errorf("Unable to retrieve an internal ID for the specified public application ID: %s", applicationID),
-			Message: "Unable to retrieve an internal ID",
-		}
+		return "", &ApplicationIDError{ApplicationID: applicationID}
 	}
 
 	// read body of response with error

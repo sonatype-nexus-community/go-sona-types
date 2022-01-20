@@ -54,6 +54,61 @@ const applicationsResponse = `{
 	]
 }`
 
+const organizationsResponse = `{
+    "organizations": [
+        {
+            "id": "ROOT_ORGANIZATION_ID",
+            "name": "Root Organization",
+            "tags": [
+                {
+                    "id": "5183820023bf4e27bb326203525b858b",
+                    "name": "Distributed",
+                    "description": "Applications that are provided for consumption outside the company",
+                    "color": "yellow"
+                },
+                {
+                    "id": "05f86514787a4b1389998eb84c219cc9",
+                    "name": "Hosted",
+                    "description": "Applications that are hosted such as services or software as a service.",
+                    "color": "light-purple"
+                },
+                {
+                    "id": "695770365dad40d5a381d1865df58393",
+                    "name": "Internal",
+                    "description": "Applications that are used only by your employees",
+                    "color": "dark-green"
+                }
+            ]
+        },
+        {
+            "id": "9eb917606b8b4debb46328336009eefa",
+            "name": "Sandbox Organization",
+            "tags": []
+        },
+        {
+            "id": "someFakedOrganizationIDForDefaultAppCreation",
+            "name": "My Parent Organization Name",
+            "tags": [
+				{
+                    "id": "695770365dad40d5a381d1865df58399",
+                    "name": "MyTagName",
+                    "description": "My Tag Description",
+                    "color": "dark-green"
+                }
+			]
+        }
+    ]
+}`
+
+const createApplicationResponse = `{
+    "id": "123a08ddc9cd40aab4bc347e9e66f799",
+    "publicId": "testapp",
+    "name": "testapp",
+    "organizationId": "9eb917606b8b4debb46328336009eefa",
+    "contactUserName": "admin",
+    "applicationTags": []
+}`
+
 const thirdPartyAPIResultJSON = `{
 		"statusUrl": "api/v2/scan/applications/4bb67dcfc86344e3a483832f8c496419/status/9cee2b6366fc4d328edc318eae46b2cb"
 }`
@@ -345,6 +400,38 @@ func TestAuditPackagesIqCannotLocateApplicationID(t *testing.T) {
 	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
 
 	iq := setupIQServer(t)
+
+	_, err := iq.AuditPackages(purls)
+	if err == nil {
+		t.Errorf("err should not be nil, expected an err with the following text: %s", expectedError)
+	}
+	if err.Error() != expectedError {
+		t.Errorf("Error returned is not as expected. Expected: %s but got: %s", expectedError, err.Error())
+	}
+}
+
+func TestAuditPackagesIqAutoCreateApplicationID(t *testing.T) {
+	expectedError := "An error occurred: There was an issue auditing packages using OSS Index, err: Post \"https://ossindex.sonatype.org/api/v3/component-report\": no responder found"
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/applications?publicId=testapp",
+		httpmock.NewBytesResponder(200, []byte(`{ "applications": [] }`)))
+
+	httpmock.RegisterResponder("GET", "http://sillyplace.com:8090/api/v2/organizations",
+		httpmock.NewStringResponder(200, organizationsResponse))
+
+	httpmock.RegisterResponder("POST", "http://sillyplace.com:8090/api/v2/applications",
+		httpmock.NewStringResponder(200, createApplicationResponse))
+
+	var purls []string
+	purls = append(purls, "pkg:golang/github.com/go-yaml/yaml@v2.2.2")
+	purls = append(purls, "pkg:golang/golang.org/x/crypto@v0.0.0-20190308221718-c2843e01d9a2")
+
+	iq := setupIQServer(t)
+
+	// force new app org name (non-root)
+	iq.Options.AutomaticApplicationCreationParentOrganizationName = "My Parent Organization Name"
 
 	_, err := iq.AuditPackages(purls)
 	if err == nil {
