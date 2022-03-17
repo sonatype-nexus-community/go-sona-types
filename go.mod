@@ -11,7 +11,7 @@ require (
 	github.com/shopspring/decimal v1.2.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.5.1
-	golang.org/x/sys v0.0.0-20200519105757-fe76b779f299 // indirect
+	golang.org/x/sys v0.0.0-20220317061510-51cd9980dadf // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1
 	gopkg.in/yaml.v2 v2.3.0
