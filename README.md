@@ -102,4 +102,3 @@ Follow the steps below to release a new version.
          
   3. Click the GitHub buttons to make a new release from this new tag. 
 
-[//]: # (silly diff to trigger build, remove this)
