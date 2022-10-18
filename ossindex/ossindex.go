@@ -21,7 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"runtime"
 	"time"
@@ -173,7 +173,7 @@ func (o *Server) doRequestToOSSIndex(jsonStr []byte) (coordinates []types.Coordi
 		}
 	}()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		o.logLady.WithField("error", err).Error("Error accessing OSS Index")
 		return

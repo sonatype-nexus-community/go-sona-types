@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -345,7 +344,7 @@ func (i *Server) getInternalApplicationID(applicationID string) (string, error) 
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return "", &ServerError{
 				Err:     err,
@@ -437,7 +436,7 @@ func (i *Server) submitToThirdPartyAPI(sbom string, internalID string) (string, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusAccepted {
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
 		i.logLady.WithField("body", string(bodyBytes)).Info("Request accepted")
 		if err != nil {
 			return "", &ServerError{
@@ -458,7 +457,7 @@ func (i *Server) submitToThirdPartyAPI(sbom string, internalID string) (string, 
 	}
 
 	// something went wrong
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		i.logLady.Error(err)
 		// do not return to allow the ServerError below to be returned
@@ -518,7 +517,7 @@ func (i *Server) pollIQServer(statusURL string, finished chan resultError) error
 	}).Trace("Nexus IQ polling status")
 
 	if resp.StatusCode == http.StatusOK {
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return &ServerError{
 				Err:     err,
