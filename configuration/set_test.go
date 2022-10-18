@@ -21,7 +21,7 @@ import (
 	"github.com/sonatype-nexus-community/go-sona-types/internal"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 )
@@ -105,7 +105,7 @@ func TestGetConfigFromCommandLineOssIndex(t *testing.T) {
 		t.Errorf("Test failed: %s", err.Error())
 	}
 
-	b, err := ioutil.ReadFile(configSet.ConfigLocation)
+	b, err := os.ReadFile(configSet.ConfigLocation)
 	if err != nil {
 		t.Errorf("Test failed: %s", err.Error())
 	}
@@ -149,7 +149,7 @@ func TestGetConfigFromCommandLineIqServer(t *testing.T) {
 		t.Errorf("Test failed: %s", err.Error())
 	}
 
-	b, err := ioutil.ReadFile(configSet.ConfigLocation)
+	b, err := os.ReadFile(configSet.ConfigLocation)
 	if err != nil {
 		t.Errorf("Test failed: %s", err.Error())
 	}
@@ -181,7 +181,7 @@ func TestGetConfigFromCommandLineIqServerRectifyBadChoicesDefault(t *testing.T) 
 		t.Errorf("Test failed: %s", err.Error())
 	}
 
-	b, err := ioutil.ReadFile(configSet.ConfigLocation)
+	b, err := os.ReadFile(configSet.ConfigLocation)
 	if err != nil {
 		t.Errorf("Test failed: %s", err.Error())
 	}
@@ -207,7 +207,7 @@ func TestGetConfigFromCommandLineIqServerWithLoopToResetConfig(t *testing.T) {
 		t.Errorf("Test failed: %s", err.Error())
 	}
 
-	b, err := ioutil.ReadFile(configSet.ConfigLocation)
+	b, err := os.ReadFile(configSet.ConfigLocation)
 	if err != nil {
 		t.Errorf("Test failed: %s", err.Error())
 	}

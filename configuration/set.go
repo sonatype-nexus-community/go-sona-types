@@ -22,7 +22,6 @@ import (
 	"github.com/sonatype-nexus-community/go-sona-types/ossindex/types"
 	"gopkg.in/yaml.v2"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -212,7 +211,7 @@ func (i *ConfigSet) marshallAndWriteToDisk(config interface{}) (err error) {
 		}
 	}
 
-	err = ioutil.WriteFile(i.ConfigLocation, d, 0644)
+	err = os.WriteFile(i.ConfigLocation, d, 0644)
 	if err != nil {
 		return
 	}
