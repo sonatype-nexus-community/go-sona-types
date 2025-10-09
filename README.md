@@ -1,5 +1,14 @@
 # Go Sonatypes
 
+> ℹ️ As of October 2025, this community project has been [archived](https://contribute.sonatype.com/docs/project-classification/).
+>
+> There are better alternatives today:
+> - CycloneDX: https://github.com/CycloneDX/cyclonedx-go
+> - OSS Index: https://github.com/sonatype-nexus-community/ossindex-api-client-go
+> - Sonatype IQ Server: https://github.com/sonatype-nexus-community/nexus-iq-api-client-go
+>
+> 🚧 This community project will receive no further updates or maintenance.
+
 <a href="https://circleci.com/gh/sonatype-nexus-community/go-sona-types"><img src="https://circleci.com/gh/sonatype-nexus-community/go-sona-types.svg?style=shield" alt="Circle CI Build Status"></img></a>
 [![Go Reference](https://pkg.go.dev/badge/github.com/sonatype-nexus-community/go-sona-types.svg)](https://pkg.go.dev/github.com/sonatype-nexus-community/go-sona-types)
 
